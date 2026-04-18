@@ -132,9 +132,11 @@ class ModelTester:
             return os.environ.get(env_var, "")
         return value
 
-    async def test_all_models(self) -> list[ModelTestResult]:
+    async def test_all_models(self, enabled_only: bool = True) -> list[ModelTestResult]:
         results = []
         for config in self.registry.list_models():
+            if enabled_only and not config.enabled:
+                continue
             result = await self.test_model(config)
             results.append(result)
         return results

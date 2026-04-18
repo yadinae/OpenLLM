@@ -144,8 +144,10 @@ def config(
 
 
 @cli.command("test")
-def test_cmd():
-    """Test all configured models"""
+def test_cmd(
+    all_models: bool = typer.Option(False, "--all", help="Test all models including disabled"),
+):
+    """Test configured models"""
     from src.tester import ModelTester
 
     config_path = Path(__file__).parent.parent / "config" / "models.yaml"
@@ -160,8 +162,9 @@ def test_cmd():
 
         tester = ModelTester(registry)
 
-        typer.echo("Testing models...")
-        results = await tester.test_all_models()
+        mode = "all" if all_models else "enabled"
+        typer.echo(f"Testing {mode} models...")
+        results = await tester.test_all_models(enabled_only=not all_models)
 
         available_count = 0
         for r in results:
