@@ -1,0 +1,24 @@
+name: openllm-project
+description: OpenLLM - AI Model Aggregation Platform with Scoring
+version: 1.0.0
+
+artifacts:
+  - id: proposal
+    type: proposal
+    title: Proposal
+    description: Project proposal document
+    
+  - id: design
+    type: design
+    title: Design
+    description: Detailed design document
+    
+  - id: tasks
+    type: tasks
+    title: Tasks
+    description: Implementation tasks
+
+apply:
+  requires:
+    - tasks
+  description: Implement OpenLLM project

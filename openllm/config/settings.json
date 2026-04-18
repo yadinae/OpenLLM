@@ -1,0 +1,22 @@
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8000
+  },
+  "context": {
+    "mode": "dynamic",
+    "max_tokens": 128000
+  },
+  "session": {
+    "affinity_enabled": true,
+    "cache_ttl": 3600
+  },
+  "failover": {
+    "max_retries": 3,
+    "retry_delay": 1.0
+  },
+  "scoring": {
+    "enabled": true,
+    "update_interval": 300
+  }
+}
