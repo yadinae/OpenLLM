@@ -1,9 +1,11 @@
 """Server entry point for OpenLLM"""
 
+import asyncio
 import logging
 import os
 from pathlib import Path
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,9 +22,37 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+_auto_test_interval: int = 3600  # 1 hour default
+_auto_test_task: Optional[asyncio.Task] = None
+
+
+async def _run_model_tester():
+    from src.tester import ModelTester
+
+    config_dir = Path(__file__).parent.parent / "config"
+    models_config = config_dir / "models.yaml"
+
+    registry = get_registry()
+    if models_config.exists():
+        registry.load_from_yaml(str(models_config))
+
+    tester = ModelTester(registry)
+
+    while True:
+        try:
+            results = await tester.test_all_models()
+            tester.update_config(results, models_config)
+            logger.info(f"Model test completed: {len(results)} models tested")
+        except Exception as e:
+            logger.error(f"Model test failed: {e}")
+
+        await asyncio.sleep(_auto_test_interval)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _auto_test_task
+
     logger.info("Starting OpenLLM server...")
 
     config_dir = Path(__file__).parent.parent / "config"
@@ -39,11 +69,20 @@ async def lifespan(app: FastAPI):
     scorer = get_scorer()
     context_mgr = get_context_manager()
 
+    _auto_test_task = asyncio.create_task(_run_model_tester())
+    logger.info(f"Auto model tester started (interval: {_auto_test_interval}s)")
+
     logger.info("OpenLLM server started")
 
     yield
 
     logger.info("Shutting down OpenLLM server...")
+    if _auto_test_task:
+        _auto_test_task.cancel()
+        try:
+            await _auto_test_task
+        except asyncio.CancelledError:
+            pass
     await registry.close_all()
     logger.info("OpenLLM server stopped")
 

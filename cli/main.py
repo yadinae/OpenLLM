@@ -143,6 +143,47 @@ def config(
         typer.echo(f"  TPM: {m.tpm}")
 
 
+@cli.command("test")
+def test_cmd():
+    """Test all configured models"""
+    from src.tester import ModelTester
+
+    config_path = Path(__file__).parent.parent / "config" / "models.yaml"
+
+    async def run():
+        registry = get_registry()
+        registry.load_from_yaml(config_path)
+
+        if not config_path.exists():
+            typer.echo(f"Config file not found: {config_path}")
+            raise typer.Exit(1)
+
+        tester = ModelTester(registry)
+
+        typer.echo("Testing models...")
+        results = await tester.test_all_models()
+
+        available_count = 0
+        for r in results:
+            if r.available:
+                available_count += 1
+                caps = ", ".join(r.capabilities) if r.capabilities else "none"
+                size = f" ({r.model_size})" if r.model_size else ""
+                typer.echo(
+                    f"  ✅ {r.model_name}{size}: "
+                    f"available ({r.response_time_ms:.0f}ms), "
+                    f"context: {r.max_context_length}, "
+                    f"capabilities: [{caps}]"
+                )
+            else:
+                error_msg = f" - {r.error}" if r.error else ""
+                typer.echo(f"  ❌ {r.model_name}: unavailable{error_msg}")
+
+        typer.echo(f"\nResults: {available_count}/{len(results)} models available")
+
+    asyncio.run(run())
+
+
 def main():
     cli()
 
