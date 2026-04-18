@@ -235,6 +235,121 @@ def freeride_cmd(
     asyncio.run(run())
 
 
+@cli.command("provider")
+def provider_cmd(
+    add: bool = typer.Option(False, "--add", help="Add a new provider"),
+    name: str = typer.Option("", "--name", help="Provider name"),
+    endpoint: str = typer.Option("", "--endpoint", help="Provider API endpoint"),
+    api_key: str = typer.Option("", "--api-key", help="API key"),
+    protocol: str = typer.Option(
+        "openai", "--protocol", help="Protocol (openai/ollama/anthropic/rest)"
+    ),
+    discover: bool = typer.Option(
+        True, "--discover/--no-discover", help="Discover models after adding"
+    ),
+):
+    """Manage custom providers"""
+    from src.tester import ModelTester
+    from src.adapters.base import create_adapter
+    import yaml
+    import os
+
+    config_path = Path(__file__).parent.parent / "config" / "models.yaml"
+
+    async def run():
+        if add:
+            if not name or not endpoint:
+                typer.echo("Error: --name and --endpoint are required")
+                raise typer.Exit(1)
+
+            api_key = api_key or os.environ.get(f"{name.upper()}_API_KEY", "")
+
+            if not api_key:
+                typer.echo(
+                    f"Warning: No API key provided. Set {name.upper()}_API_KEY or pass --api-key"
+                )
+
+            with open(config_path) as f:
+                data = yaml.safe_load(f) or {}
+                if "models" not in data:
+                    data["models"] = []
+
+            model_name = name if not name.startswith("provider/") else name
+
+            config = {
+                "name": model_name,
+                "protocol": protocol,
+                "endpoint": endpoint,
+                "api_key": f"${{{name.upper()}_API_KEY}}",
+                "enabled": True,
+                "rpm": 30,
+                "tpm": 15000,
+                "max_context_length": 128000,
+                "capabilities": ["text", "coding"],
+            }
+
+            existing = [m.get("name") for m in data.get("models", [])]
+            if model_name not in existing:
+                data["models"].append(config)
+                with open(config_path, "w") as f:
+                    yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
+                typer.echo(f"Added provider: {name}")
+            else:
+                typer.echo(f"Provider already exists: {name}")
+
+            if discover:
+                registry = get_registry()
+                registry.load_from_yaml(config_path)
+
+                api_key_resolved = api_key or os.environ.get(f"{name.upper()}_API_KEY", "")
+                if not api_key_resolved:
+                    typer.echo("No API key, skipping discover")
+                    return
+
+                adapter_config = type(
+                    "AdapterConfig",
+                    (),
+                    {
+                        "model": model_name,
+                        "protocol": protocol,
+                        "endpoint": endpoint,
+                        "api_key": api_key_resolved,
+                    },
+                )()
+
+                try:
+                    adapter = create_adapter(protocol, adapter_config)
+                    model_infos = await adapter.list_available_models()
+
+                    new_models = []
+                    for mi in model_infos:
+                        if mi.id not in existing and mi.id != model_name:
+                            new_config = config.copy()
+                            new_config["name"] = mi.id
+                            data["models"].append(new_config)
+                            new_models.append(mi.id)
+
+                    if new_models:
+                        with open(config_path, "w") as f:
+                            yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
+                        typer.echo(f"Discovered {len(new_models)} models:")
+                        for m in new_models:
+                            typer.echo(f"  - {m}")
+                    else:
+                        typer.echo("No new models discovered")
+
+                    await adapter.close()
+                except Exception as e:
+                    typer.echo(f"Discover failed: {e}")
+
+        else:
+            typer.echo(
+                "Use --add --name <name> --endpoint <url> [--api-key <key>] [--protocol <protocol>]"
+            )
+
+    asyncio.run(run())
+
+
 def main():
     cli()
 

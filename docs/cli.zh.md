@@ -276,6 +276,40 @@ openllm freeride --status
 
 ---
 
+### provider
+
+添加自定义供应商并自动发现其模型。
+
+```bash
+openllm provider --add --name <名称> --endpoint <URL> [选项]
+```
+
+**选项：**
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `--add` | bool | 添加新供应商 |
+| `--name` | string | 供应商名称 |
+| `--endpoint` | string | 供应商 API 端点 |
+| `--api-key` | string | API 密钥 |
+| `--protocol` | string | 协议 (openai/ollama/anthropic/rest) |
+| `--discover` | bool | 添加后自动发现模型 |
+
+**示例：**
+
+```bash
+# 添加新供应商
+openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1
+
+# 带 API 密钥
+openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1 --api-key sk-xxx
+
+# 添加并发现模型
+openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1 --discover
+```
+
+---
+
 ## Python API
 
 ### 运行服务器

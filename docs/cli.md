@@ -276,6 +276,40 @@ openllm freeride --status
 
 ---
 
+### provider
+
+Add a custom provider and optionally discover its models.
+
+```bash
+openllm provider --add --name <name> --endpoint <url> [OPTIONS]
+```
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--add` | bool | Add a new provider |
+| `--name` | string | Provider name |
+| `--endpoint` | string | Provider API endpoint |
+| `--api-key` | string | API key |
+| `--protocol` | string | Protocol (openai/ollama/anthropic/rest) |
+| `--discover` | bool | Auto-discover models after adding |
+
+**Example:**
+
+```bash
+# Add a new provider
+openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1
+
+# Add with API key
+openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1 --api-key sk-xxx
+
+# Add and discover models
+openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1 --discover
+```
+
+---
+
 ## Python API
 
 ### Run Server
