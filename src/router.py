@@ -3,11 +3,11 @@
 import time
 import logging
 from fastapi import APIRouter, HTTPException
-from openllm.src.dispatcher import get_dispatcher
-from openllm.src.limiter import get_limiter
-from openllm.src.models import ChatRequest, ChatResponse, ChatError, ModelList, ModelInfo, UsageInfo
-from openllm.src.registry import get_registry
-from openllm.src.scorer import get_scorer
+from src.dispatcher import get_dispatcher
+from src.limiter import get_limiter
+from src.models import ChatRequest, ChatResponse, ChatError, ModelList, ModelInfo, UsageInfo
+from src.registry import get_registry
+from src.scorer import get_scorer
 
 logger = logging.getLogger(__name__)
 

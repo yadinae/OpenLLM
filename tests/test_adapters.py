@@ -1,9 +1,9 @@
 """Tests for protocol adapters"""
 
 import pytest
-from openllm.src.adapter_model import AdapterConfig
-from openllm.src.adapters.openai import OpenAIAdapter
-from openllm.src.adapters.base import AdapterError, RateLimitError
+from src.adapter_model import AdapterConfig
+from src.adapters.openai import OpenAIAdapter
+from src.adapters.base import AdapterError, RateLimitError
 
 
 class TestOpenAIAdapter:

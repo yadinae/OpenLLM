@@ -3,8 +3,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 import httpx
-from openllm.src.adapter_model import AdapterConfig
-from openllm.src.models import ChatResponse, EmbeddingResponse, ModelInfo
+from src.adapter_model import AdapterConfig
+from src.models import ChatResponse, EmbeddingResponse, ModelInfo
 
 
 class AdapterError(Exception):
@@ -96,19 +96,19 @@ class ProtocolAdapter(ABC):
 def create_adapter(protocol: str, config: AdapterConfig) -> ProtocolAdapter:
     """Factory function to create adapter by protocol type"""
     if protocol == "openai":
-        from openllm.src.adapters.openai import OpenAIAdapter
+        from src.adapters.openai import OpenAIAdapter
 
         return OpenAIAdapter(config)
     elif protocol == "anthropic":
-        from openllm.src.adapters.anthropic import AnthropicAdapter
+        from src.adapters.anthropic import AnthropicAdapter
 
         return AnthropicAdapter(config)
     elif protocol == "rest":
-        from openllm.src.adapters.rest import RESTAdapter
+        from src.adapters.rest import RESTAdapter
 
         return RESTAdapter(config)
     elif protocol == "ollama":
-        from openllm.src.adapters.ollama import OllamaAdapter
+        from src.adapters.ollama import OllamaAdapter
 
         return OllamaAdapter(config)
     else:

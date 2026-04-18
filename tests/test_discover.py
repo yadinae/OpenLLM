@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from openllm.src.adapter_model import ModelConfig, AdapterConfig
-from openllm.src.models import ModelInfo
-from openllm.src.registry import ModelRegistry
+from src.adapter_model import ModelConfig, AdapterConfig
+from src.models import ModelInfo
+from src.registry import ModelRegistry
 
 
 @pytest.fixture
@@ -74,8 +74,8 @@ async def test_discover_skips_existing_models(registry, sample_config):
 
 @pytest.mark.asyncio
 async def test_list_available_models_base():
-    from openllm.src.adapters.base import ProtocolAdapter
-    from openllm.src.adapter_model import AdapterConfig
+    from src.adapters.base import ProtocolAdapter
+    from src.adapter_model import AdapterConfig
 
     class TestAdapter(ProtocolAdapter):
         protocol = "test"

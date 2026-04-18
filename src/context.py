@@ -2,7 +2,7 @@
 
 import logging
 from typing import Optional
-from openllm.src.enums import ContextMode
+from src.enums import ContextMode
 
 logger = logging.getLogger(__name__)
 

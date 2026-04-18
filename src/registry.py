@@ -6,9 +6,9 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 import yaml
-from openllm.src.adapter_model import AdapterConfig, ModelConfig
-from openllm.src.adapters.base import ProtocolAdapter, create_adapter
-from openllm.src.enums import ProtocolType
+from src.adapter_model import AdapterConfig, ModelConfig
+from src.adapters.base import ProtocolAdapter, create_adapter
+from src.enums import ProtocolType
 
 logger = logging.getLogger(__name__)
 

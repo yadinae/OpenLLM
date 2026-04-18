@@ -9,11 +9,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from openllm.src.context import ContextManager, get_context_manager
-from openllm.src.limiter import get_limiter
-from openllm.src.registry import get_registry
-from openllm.src.router import router
-from openllm.src.scorer import get_scorer
+from src.context import ContextManager, get_context_manager
+from src.limiter import get_limiter
+from src.registry import get_registry
+from src.router import router
+from src.scorer import get_scorer
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"

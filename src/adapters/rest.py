@@ -4,9 +4,9 @@ import time
 import re
 from typing import Any, Optional
 import httpx
-from openllm.src.adapter_model import AdapterConfig
-from openllm.src.adapters.base import ProtocolAdapter, RateLimitError
-from openllm.src.models import (
+from src.adapter_model import AdapterConfig
+from src.adapters.base import ProtocolAdapter, RateLimitError
+from src.models import (
     ChatResponse,
     Choice,
     Message,

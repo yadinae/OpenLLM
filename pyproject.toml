@@ -41,10 +41,7 @@ dev = [
 ]
 
 [project.scripts]
-openllm = "openllm.cli:main"
-
-[tool.setuptools]
-packages = ["openllm", "openllm.src", "openllm.src.adapters", "openllm.cli"]
+openllm = "cli.main:cli"
 
 [tool.black]
 line-length = 100
@@ -62,4 +59,7 @@ disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["openllm/tests"]
+testpaths = ["tests"]
+
+[tool.setuptools]
+packages = ["src", "src.adapters", "cli"]

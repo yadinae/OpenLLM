@@ -7,8 +7,8 @@ import typer
 import uvicorn
 from pathlib import Path
 from typing import Optional
-from openllm.src.registry import get_registry
-from openllm.src.scorer import get_scorer
+from src.registry import get_registry
+from src.scorer import get_scorer
 
 cli = typer.Typer(help="OpenLLM CLI")
 
@@ -33,7 +33,7 @@ def serve(
 
         os.environ["OPENLLM_CONFIG"] = config
 
-    from openllm.src.server import run
+    from src.server import run
 
     run(host=host, port=port, reload=reload)
 

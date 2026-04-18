@@ -5,13 +5,13 @@ import logging
 import time
 from typing import Any, Optional
 
-from openllm.src.adapter_model import ModelConfig
-from openllm.src.adapters.base import AdapterError, RateLimitError, ProtocolAdapter
-from openllm.src.context import get_context_manager
-from openllm.src.limiter import RateLimiter, get_limiter, RateLimitExceeded
-from openllm.src.models import ChatRequest, ChatResponse
-from openllm.src.registry import get_registry
-from openllm.src.scorer import get_scorer
+from src.adapter_model import ModelConfig
+from src.adapters.base import AdapterError, RateLimitError, ProtocolAdapter
+from src.context import get_context_manager
+from src.limiter import RateLimiter, get_limiter, RateLimitExceeded
+from src.models import ChatRequest, ChatResponse
+from src.registry import get_registry
+from src.scorer import get_scorer
 
 logger = logging.getLogger(__name__)
 
