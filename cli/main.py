@@ -187,6 +187,54 @@ def test_cmd(
     asyncio.run(run())
 
 
+@cli.command("freeride")
+def freeride_cmd(
+    enable: bool = typer.Option(False, "--enable", help="Enable FreeRide mode"),
+    disable: bool = typer.Option(False, "--disable", help="Disable FreeRide mode"),
+    status: bool = typer.Option(False, "--status", help="Show FreeRide status"),
+    providers: str = typer.Option("", "--providers", help="Comma-separated providers"),
+):
+    """Manage FreeRide mode for token freedom"""
+    from src.freeride import FreeRideManager
+
+    config_path = Path(__file__).parent.parent / "config" / "models.yaml"
+
+    async def run():
+        registry = get_registry()
+        registry.load_from_yaml(config_path)
+
+        freeride = FreeRideManager(registry)
+        freeride.load_config(config_path)
+
+        if enable:
+            selected = [p.strip() for p in providers.split(",")] if providers else None
+            added = await freeride.enable(selected)
+            if added:
+                typer.echo(f"FreeRide enabled! Added {len(added)} free models:")
+                for m in added:
+                    typer.echo(f"  - {m.name}")
+            else:
+                typer.echo("No models added. Check API keys in .env")
+
+        elif disable:
+            freeride.disable()
+            typer.echo("FreeRide disabled - free models removed")
+
+        elif status:
+            st = freeride.get_status()
+            typer.echo(f"FreeRide Status:")
+            typer.echo(f"  Configured Providers: {', '.join(st['configured_providers'])}")
+            typer.echo(
+                f"  Available Providers: {', '.join(st['available_providers']) if st['available_providers'] else 'None'}"
+            )
+            typer.echo(f"  Free Models: {st['free_models_count']}")
+
+        else:
+            typer.echo("Use --enable, --disable, or --status")
+
+    asyncio.run(run())
+
+
 def main():
     cli()
 

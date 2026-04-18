@@ -397,6 +397,55 @@ $ openllm models
   [✗] gpt-3.5-turbo (openai)
 ```
 
+## FreeRide Mode
+
+### Introduction
+
+FreeRide mode automatically discovers and connects to free LLM APIs, enabling token freedom without manual configuration.
+
+### Available Providers
+
+| Provider | Endpoint | Free Models |
+|----------|----------|------------|
+| Groq | `https://api.groq.com/openai/v1` | llama-3.3-70b-versatile, qwen3-32b |
+| Cerebras | `https://api.cerebras.ai/v1` | llama3.1-8b, qwen-3-235b-a22b |
+| OpenRouter | `https://openrouter.ai/api/v1` | deepseek-r1:free, llama-3.3-70b:free |
+| Mistral | `https://api.mistral.ai/v1` | mistral-small-latest, codestral |
+| Gemini | `https://generativelanguage.googleapis.com/v1beta` | gemini-2.5-flash |
+| Ollama | `http://localhost:11434` | llama3, mistral |
+
+### Usage
+
+```bash
+# Enable FreeRide with all providers
+openllm freeride --enable
+
+# Enable specific providers
+openllm freeride --enable --providers groq,cerebras
+
+# Check status
+openllm freeride --status
+
+# Disable and remove free models
+openllm freeride --disable
+```
+
+### API Keys
+
+Set your API keys in `.env`:
+
+```bash
+GROQ_API_KEY=your_groq_key
+CEREBRAS_API_KEY=your_cerebras_key
+OPENROUTER_API_KEY=your_openrouter_key
+MISTRAL_API_KEY=your_mistral_key
+GEMINI_API_KEY=your_google_key
+```
+
+### Integration with awesome-free-llm-apis
+
+This project is inspired by [awesome-free-llm-apis](https://github.com/mnfst/awesome-free-llm-apis). Check it for the latest free LLM provider information.
+
 ## Troubleshooting
 
 ### Model Not Loading

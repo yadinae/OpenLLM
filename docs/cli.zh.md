@@ -203,6 +203,79 @@ Models saved to /path/to/models.yaml (enabled: false)
 
 ---
 
+### test
+
+测试已配置的模型可用性和能力。
+
+```bash
+openllm test [选项]
+```
+
+**选项：**
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `--all` | bool | 测试所有模型，包括禁用的 |
+
+**示例：**
+
+```bash
+openllm test
+```
+
+**输出示例：**
+
+```
+Testing enabled models...
+  ✅ groq/llama-3.3-70b-versatile (70b): available (120ms), context: 131072, capabilities: [coding, math]
+  ❌ mistral/mistral-large-latest: unavailable
+
+Results: 1/2 models available
+```
+
+---
+
+### freeride
+
+FreeRide 模式 - 自动发现并连接免费 LLM API，实现 token 自由。
+
+```bash
+openllm freeride [选项]
+```
+
+**选项：**
+
+| 选项 | 类型 | 说明 |
+|------|------|------|
+| `--enable` | bool | 启用 FreeRide 模式 |
+| `--disable` | bool | 禁用 FreeRide 模式 |
+| `--status` | bool | 显示 FreeRide 状态 |
+| `--providers` | string | 逗号分隔的供应商列表 |
+
+**示例：**
+
+```bash
+# 启用所有供应商
+openllm freeride --enable
+
+# 指定供应商
+openllm freeride --enable --providers groq,cerebras
+
+# 显示状态
+openllm freeride --status
+```
+
+**支持的供应商：**
+
+- Groq (llama-3.3-70b-versatile, qwen3-32b)
+- Cerebras (llama3.1-8b, qwen-3-235b-a22b)
+- OpenRouter (deepseek-r1:free, llama-3.3-70b:free)
+- Mistral (mistral-small, codestral)
+- Gemini (gemini-2.5-flash)
+- Ollama (llama3, mistral)
+
+---
+
 ## Python API
 
 ### 运行服务器

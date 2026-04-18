@@ -419,3 +419,52 @@ $ openllm models
 1. 网络连接
 2. API 密钥有效性
 3. 供应商状态页面
+
+## FreeRide 模式
+
+### 简介
+
+FreeRide 模式自动发现并连接免费 LLM API，实现 token 自由。
+
+### 可用供应商
+
+| 供应商 | 端点 | 免费模型 |
+|--------|------|----------|
+| Groq | `https://api.groq.com/openai/v1` | llama-3.3-70b-versatile, qwen3-32b |
+| Cerebras | `https://api.cerebras.ai/v1` | llama3.1-8b, qwen-3-235b-a22b |
+| OpenRouter | `https://openrouter.ai/api/v1` | deepseek-r1:free, llama-3.3-70b:free |
+| Mistral | `https://api.mistral.ai/v1` | mistral-small-latest, codestral |
+| Gemini | `https://generativelanguage.googleapis.com/v1beta` | gemini-2.5-flash |
+| Ollama | `http://localhost:11434` | llama3, mistral |
+
+### 使用方法
+
+```bash
+# 启用所有供应商
+openllm freeride --enable
+
+# 指定供应商
+openllm freeride --enable --providers groq,cerebras
+
+# 查看状态
+openllm freeride --status
+
+# 禁用并移除免费模型
+openllm freeride --disable
+```
+
+### API 密钥
+
+在 `.env` 中设置 API 密钥：
+
+```bash
+GROQ_API_KEY=your_groq_key
+CEREBRAS_API_KEY=your_cerebras_key
+OPENROUTER_API_KEY=your_openrouter_key
+MISTRAL_API_KEY=your_mistral_key
+GEMINI_API_KEY=your_google_key
+```
+
+### 参考
+
+本项目参考 [awesome-free-llm-apis](https://github.com/mnfst/awesome-free-llm-apis)。查看该项目获取最新的免费 LLM 供应商信息。

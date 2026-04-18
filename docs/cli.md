@@ -203,6 +203,79 @@ Models saved to /path/to/models.yaml (enabled: false)
 
 ---
 
+### test
+
+Test configured models for availability and capabilities.
+
+```bash
+openllm test [OPTIONS]
+```
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--all` | bool | Test all models including disabled |
+
+**Example:**
+
+```bash
+openllm test
+```
+
+**Example Output:**
+
+```
+Testing enabled models...
+  ✅ groq/llama-3.3-70b-versatile (70b): available (120ms), context: 131072, capabilities: [coding, math]
+  ❌ mistral/mistral-large-latest: unavailable
+
+Results: 1/2 models available
+```
+
+---
+
+### freeride
+
+FreeRide mode for token freedom - automatically discover and connect to free LLM APIs.
+
+```bash
+openllm freeride [OPTIONS]
+```
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `--enable` | bool | Enable FreeRide mode |
+| `--disable` | bool | Disable FreeRide mode |
+| `--status` | bool | Show FreeRide status |
+| `--providers` | string | Comma-separated providers |
+
+**Example:**
+
+```bash
+# Enable with all providers
+openllm freeride --enable
+
+# Enable specific providers
+openllm freeride --enable --providers groq,cerebras
+
+# Show status
+openllm freeride --status
+```
+
+**Supported Providers:**
+
+- Groq (llama-3.3-70b-versatile, qwen3-32b)
+- Cerebras (llama3.1-8b, qwen-3-235b-a22b)
+- OpenRouter (deepseek-r1:free, llama-3.3-70b:free)
+- Mistral (mistral-small, codestral)
+- Gemini (gemini-2.5-flash)
+- Ollama (llama3, mistral)
+
+---
+
 ## Python API
 
 ### Run Server
