@@ -6,6 +6,10 @@
 </p>
 
 <p align="center">
+  <a href="README.zh.md">中文版</a>
+</p>
+
+<p align="center">
   <a href="https://pypi.org/project/openllm/"><img src="https://img.shields.io/pypi/v/openllm.svg" alt="PyPI"></a>
   <a href="https://python.org"><img src="https://img.shields.io/python/py-3.10+/openllm" alt="Python"></a>
   <a href="LICENSE"><img src="https://img.shields.io/pypi/l/openllm" alt="License"></a>
