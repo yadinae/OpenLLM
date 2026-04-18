@@ -298,6 +298,9 @@ openllm provider --add --name <名称> --endpoint <URL> [选项]
 **示例：**
 
 ```bash
+# 交互式模式（默认）
+openllm provider
+
 # 添加新供应商
 openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1
 

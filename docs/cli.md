@@ -298,6 +298,9 @@ openllm provider --add --name <name> --endpoint <url> [OPTIONS]
 **Example:**
 
 ```bash
+# Interactive mode (default)
+openllm provider
+
 # Add a new provider
 openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1
 
