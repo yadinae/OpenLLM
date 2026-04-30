@@ -37,6 +37,9 @@ class ChatResponse(BaseModel):
     model: str = Field(..., description="Model used")
     choices: list[Choice] = Field(..., description="Completion choices")
     usage: Usage = Field(default_factory=Usage, description="Token usage")
+    complexity: Optional[str] = Field(None, description="Request complexity level")
+    routing_applied: Optional[bool] = Field(None, description="Whether auto-routing was applied")
+    recommended_model: Optional[str] = Field(None, description="Recommended model for this request")
 
 
 class ChatRequest(BaseModel):
