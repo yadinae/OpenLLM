@@ -8,8 +8,21 @@ from src.limiter import get_limiter
 from src.models import ChatRequest, ChatResponse, ChatError, ModelList, ModelInfo, UsageInfo
 from src.registry import get_registry
 from src.scorer import get_scorer
+from src.token_optimizer import TokenOptimizer, CompressionMode
 
 logger = logging.getLogger(__name__)
+
+# Global token optimizer instance (normal mode by default)
+_optimizer: TokenOptimizer = None
+
+
+def get_optimizer() -> TokenOptimizer:
+    """Get or create the global token optimizer instance"""
+    global _optimizer
+    if _optimizer is None:
+        _optimizer = TokenOptimizer(mode=CompressionMode.NORMAL)
+    return _optimizer
+
 
 router = APIRouter(prefix="/v1")
 
@@ -17,6 +30,17 @@ router = APIRouter(prefix="/v1")
 @router.post("/chat/completions")
 async def chat_completions(request: ChatRequest) -> ChatResponse:
     try:
+        # Apply token optimization to user messages
+        optimizer = get_optimizer()
+        optimized_messages = optimizer.optimize_messages(
+            [m.model_dump() for m in request.messages],
+            model=request.model
+        )
+        
+        # Update request with optimized messages
+        from src.models import Message
+        request.messages = [Message(**msg) for msg in optimized_messages]
+        
         dispatcher = get_dispatcher()
         return await dispatcher.dispatch(request)
     except Exception as e:

@@ -1,0 +1,105 @@
+# Token Optimizer Configuration
+# Terse-style intelligent token compression settings
+
+# Global compression mode: soft, normal, aggressive
+mode: normal
+
+# Whether to preserve code blocks (backtick content)
+preserve_code: true
+
+# Maximum compression ratio (0.7 = max 70% compression)
+max_compression_ratio: 0.7
+
+# Minimum tokens before optimization kicks in
+min_tokens_to_optimize: 10
+
+# Model-specific compression settings
+model_compression:
+  # Claude models: handle implicit reasoning, can compress aggressively
+  "claude":
+    mode: aggressive
+    preserve_structure: false
+    max_compression_ratio: 0.7
+  
+  # GPT models: need explicit instructions, preserve structure
+  "gpt":
+    mode: normal
+    preserve_structure: true
+    max_compression_ratio: 0.5
+  
+  # Open source models: conservative compression
+  "llama":
+    mode: soft
+    preserve_structure: true
+    max_compression_ratio: 0.3
+  
+  "mistral":
+    mode: soft
+    preserve_structure: true
+    max_compression_ratio: 0.3
+  
+  "gemini":
+    mode: normal
+    preserve_structure: true
+    max_compression_ratio: 0.5
+
+# Stage-specific settings
+stages:
+  spell_correction:
+    enabled: true
+    # Skip ALL-CAPS words (likely constants, commands)
+    skip_all_caps: true
+    # Skip capitalized words (likely proper nouns)
+    skip_capitalized: true
+    # Skip words with numbers (likely variables, IDs)
+    skip_with_numbers: true
+  
+  whitespace_normalization:
+    enabled: true
+    # Remove trailing whitespace from lines
+    trim_lines: true
+    # Remove multiple blank lines
+    collapse_blank_lines: true
+  
+  pattern_optimization:
+    enabled: true
+    # Remove filler phrases
+    remove_fillers: true
+    # Remove hedging language
+    remove_hedging: true
+    # Remove meta-language
+    remove_meta: true
+  
+  redundancy_elimination:
+    enabled: true
+    # Remove duplicate sentences
+    remove_duplicate_sentences: true
+    # Remove duplicate paragraphs
+    remove_duplicate_paragraphs: true
+  
+  nlp_analysis:
+    enabled: true
+    # Convert questions to imperative
+    question_to_imperative: true
+    # Remove polite phrases
+    remove_polite_phrases: true
+  
+  telegraph_compression:
+    enabled: false  # Only in aggressive mode
+    # Remove articles
+    remove_articles: true
+    # Remove auxiliary verbs
+    remove_auxiliary_verbs: true
+    # Remove prepositions
+    remove_prepositions: true
+    # Remove conjunctions
+    remove_conjunctions: true
+  
+  final_cleanup:
+    enabled: true
+    # Fix double spaces
+    fix_double_spaces: true
+    # Fix double newlines
+    fix_double_newlines: true
+    # Remove leading punctuation from short lines
+    remove_leading_punctuation: true
