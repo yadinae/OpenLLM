@@ -9,19 +9,35 @@ from src.models import ChatRequest, ChatResponse, ChatError, ModelList, ModelInf
 from src.registry import get_registry
 from src.scorer import get_scorer
 from src.token_optimizer import TokenOptimizer, CompressionMode
+from src.compression_strategy import get_compression_selector
 
 logger = logging.getLogger(__name__)
 
-# Global token optimizer instance (normal mode by default)
-_optimizer: TokenOptimizer = None
+# Global optimizer cache (per-model)
+_optimizers: dict[str, TokenOptimizer] = {}
 
 
-def get_optimizer() -> TokenOptimizer:
-    """Get or create the global token optimizer instance"""
-    global _optimizer
-    if _optimizer is None:
-        _optimizer = TokenOptimizer(mode=CompressionMode.NORMAL)
-    return _optimizer
+def get_optimizer(model_name: str) -> TokenOptimizer:
+    """Get or create a model-specific token optimizer"""
+    if model_name in _optimizers:
+        return _optimizers[model_name]
+    
+    selector = get_compression_selector()
+    config = selector.get_strategy(model_name)
+    
+    optimizer = TokenOptimizer(
+        mode=config.mode,
+        preserve_code=config.preserve_code,
+        max_compression_ratio=config.max_compression_ratio,
+    )
+    
+    _optimizers[model_name] = optimizer
+    logger.info(
+        f"Created optimizer for {model_name}: "
+        f"mode={config.mode.value}, max_ratio={config.max_compression_ratio}"
+    )
+    
+    return optimizer
 
 
 router = APIRouter(prefix="/v1")
@@ -30,11 +46,18 @@ router = APIRouter(prefix="/v1")
 @router.post("/chat/completions")
 async def chat_completions(request: ChatRequest) -> ChatResponse:
     try:
+        # Get model-specific optimizer
+        model_name = request.model
+        if model_name == "meta-model":
+            # For meta-model, use default normal mode
+            optimizer = get_optimizer("default")
+        else:
+            optimizer = get_optimizer(model_name)
+        
         # Apply token optimization to user messages
-        optimizer = get_optimizer()
         optimized_messages = optimizer.optimize_messages(
             [m.model_dump() for m in request.messages],
-            model=request.model
+            model=model_name
         )
         
         # Update request with optimized messages
