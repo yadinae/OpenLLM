@@ -11,6 +11,7 @@ from src.scorer import get_scorer
 from src.token_optimizer import TokenOptimizer, CompressionMode
 from src.compression_strategy import get_compression_selector
 from src.complexity_scorer import get_scorer, ComplexityLevel
+from src.token_monitor import get_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,9 @@ _optimizers: dict[str, TokenOptimizer] = {}
 
 # Global complexity scorer
 _scorer = get_scorer()
+
+# Global token monitor
+_monitor = get_monitor()
 
 
 def get_optimizer(model_name: str) -> TokenOptimizer:
@@ -92,6 +96,17 @@ async def chat_completions(request: ChatRequest) -> ChatResponse:
         response.routing_applied = routing_decision["should_route"]
         if routing_decision["recommended_model"]:
             response.recommended_model = routing_decision["recommended_model"]
+        
+        # Step 8: Record monitoring data
+        session_id = request.session_id or f"anonymous-{id(request)}"
+        _monitor.record_request(
+            session_id=session_id,
+            request={"usage": response.usage.model_dump() if response.usage else {}},
+            response={"usage": response.usage.model_dump() if response.usage else {}},
+            compression_info={
+                "tokens_saved": 0  # Could be calculated from optimization stats
+            }
+        )
         
         return response
     except Exception as e:
@@ -169,3 +184,75 @@ async def refresh_scores():
 @router.get("/health")
 async def health():
     return {"status": "ok", "timestamp": int(time.time())}
+
+
+# ============================================================
+# Token Monitoring Endpoints (Phase 5)
+# ============================================================
+
+@router.get("/monitor/global")
+async def monitor_global():
+    """Get global token monitoring statistics"""
+    report = _monitor.export_report()
+    return report
+
+
+@router.get("/monitor/sessions")
+async def monitor_sessions(limit: int = 50, offset: int = 0):
+    """Get list of sessions with statistics"""
+    sessions = _monitor.get_session_list(limit=limit, offset=offset)
+    return {
+        "sessions": [
+            {
+                "session_id": s.session_id,
+                "turns": s.turns,
+                "input_tokens": s.input_tokens,
+                "output_tokens": s.output_tokens,
+                "total_tokens": s.total_tokens,
+                "compressed_tokens": s.compressed_tokens,
+                "compression_ratio": s.compression_ratio,
+                "cost": s.cost,
+                "fill_rate": s.fill_rate,
+                "last_activity": s.last_activity
+            }
+            for s in sessions
+        ],
+        "total": len(sessions)
+    }
+
+
+@router.get("/monitor/session/{session_id}")
+async def monitor_session(session_id: str):
+    """Get detailed statistics for a specific session"""
+    report = _monitor.export_report(session_id)
+    return report
+
+
+@router.get("/monitor/anomalies")
+async def monitor_anomalies(session_id: str = None, severity: str = None, limit: int = 100):
+    """Get detected anomalies"""
+    anomalies = _monitor.get_anomalies(session_id=session_id, severity=severity, limit=limit)
+    return {
+        "anomalies": [
+            {
+                "type": a.type,
+                "severity": a.severity.value,
+                "message": a.message,
+                "session_id": a.session_id,
+                "timestamp": a.timestamp,
+                "details": a.details
+            }
+            for a in anomalies
+        ]
+    }
+
+
+@router.post("/monitor/clear")
+async def monitor_clear(session_id: str = None):
+    """Clear monitoring data"""
+    if session_id:
+        _monitor.clear_session(session_id)
+        return {"status": f"Session {session_id} cleared"}
+    else:
+        _monitor.clear_all()
+        return {"status": "All monitoring data cleared"}
