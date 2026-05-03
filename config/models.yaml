@@ -1,143 +1,165 @@
 models:
-  - name: "groq/llama-3.3-70b-versatile"
-    protocol: "openai"
-    endpoint: "https://api.groq.com/openai/v1"
-    api_key: "${GROQ_API_KEY}"
-    enabled: true
-    rpm: 30
-    tpm: 6000
-    max_concurrent: 10
-    daily_limit: 1000
-    quality_weight: 0.4
-    speed_weight: 0.3
-    context_weight: 0.2
-    reliability_weight: 0.1
-    max_context_length: 131072
-    capabilities: ["text", "coding"]
-    compression:
-      mode: "soft"
-      preserve_structure: true
-      max_compression_ratio: 0.3
-    routing:
-      cost_level: "low"
-      complexity_support: ["simple", "moderate"]
-      priority: 2
-
-  - name: "groq/qwen-3-32b"
-    protocol: "openai"
-    endpoint: "https://api.groq.com/openai/v1"
-    api_key: "${GROQ_API_KEY}"
-    enabled: true
-    rpm: 30
-    tpm: 6000
-    max_concurrent: 10
-    daily_limit: 1000
-    max_context_length: 131072
-    capabilities: ["text", "coding"]
-    compression:
-      mode: "normal"
-      preserve_structure: true
-      max_compression_ratio: 0.4
-    routing:
-      cost_level: "medium"
-      complexity_support: ["simple", "moderate", "complex"]
-      priority: 1
-
-  - name: "mistral/mistral-large-latest"
-    protocol: "openai"
-    endpoint: "https://api.mistral.ai/v1"
-    api_key: "${MISTRAL_API_KEY}"
-    enabled: true
-    rpm: 30
-    tpm: 15000
-    max_concurrent: 10
-    daily_limit: 1000
-    max_context_length: 128000
-    capabilities: ["text", "coding"]
-    compression:
-      mode: "soft"
-      preserve_structure: true
-      max_compression_ratio: 0.3
-    routing:
-      cost_level: "medium"
-      complexity_support: ["simple", "moderate"]
-      priority: 2
-
-  - name: "mistral/mistral-medium-latest"
-    protocol: "openai"
-    endpoint: "https://api.mistral.ai/v1"
-    api_key: "${MISTRAL_API_KEY}"
-    enabled: true
-    rpm: 30
-    tpm: 15000
-    max_concurrent: 10
-    daily_limit: 1000
-    max_context_length: 128000
-    capabilities: ["text"]
-    compression:
-      mode: "soft"
-      preserve_structure: true
-      max_compression_ratio: 0.3
-    routing:
-      cost_level: "low"
-      complexity_support: ["simple", "moderate"]
-      priority: 3
-
-  - name: "gemini/gemini-2.5-flash"
-    protocol: "openai"
-    endpoint: "https://generativelanguage.googleapis.com/v1beta"
-    api_key: "${GEMINI_API_KEY}"
-    enabled: true
-    rpm: 15
-    tpm: 1000000
-    max_concurrent: 5
-    daily_limit: 1500
-    max_context_length: 1048576
-    capabilities: ["text", "vision"]
-    compression:
-      mode: "normal"
-      preserve_structure: true
-      max_compression_ratio: 0.5
-    routing:
-      cost_level: "low"
-      complexity_support: ["simple", "moderate"]
-      priority: 1
-
-  - name: "cerebras/qwen-3-235b-a22b-instruct"
-    protocol: "openai"
-    endpoint: "https://api.cerebras.ai/v1"
-    api_key: "${CEREBRAS_API_KEY}"
-    enabled: true
-    rpm: 30
-    tpm: 999999999
-    max_concurrent: 100
-    daily_limit: 1000
-    max_context_length: 131072
-    capabilities: ["text", "coding"]
-    compression:
-      mode: "normal"
-      preserve_structure: true
-      max_compression_ratio: 0.4
-    routing:
-      cost_level: "high"
-      complexity_support: ["simple", "moderate", "complex"]
-      priority: 0
-
-  - name: "ollama/llama3"
-    protocol: "ollama"
-    endpoint: "http://localhost:11434"
-    api_key: ""
-    enabled: false
-    rpm: 100
-    tpm: 999999999
-    max_concurrent: 10
-    max_context_length: 8192
-    capabilities: ["text", "coding"]
-    compression:
-      mode: "soft"
-      preserve_structure: true
-      max_compression_ratio: 0.3
-    routing:
-      cost_level: "free"
-      complexity_support: ["simple"]
-      priority: 4
+- name: groq/llama-3.3-70b-versatile
+  protocol: openai
+  endpoint: https://api.groq.com/openai/v1
+  api_key: ${GROQ_API_KEY}
+  enabled: true
+  rpm: 30
+  tpm: 6000
+  max_concurrent: 10
+  daily_limit: 1000
+  quality_weight: 0.4
+  speed_weight: 0.3
+  context_weight: 0.2
+  reliability_weight: 0.1
+  max_context_length: 131072
+  capabilities:
+  - text
+  - coding
+  compression:
+    mode: soft
+    preserve_structure: true
+    max_compression_ratio: 0.3
+  routing:
+    cost_level: low
+    complexity_support:
+    - simple
+    - moderate
+    priority: 2
+- name: groq/qwen-3-32b
+  protocol: openai
+  endpoint: https://api.groq.com/openai/v1
+  api_key: ${GROQ_API_KEY}
+  enabled: true
+  rpm: 30
+  tpm: 6000
+  max_concurrent: 10
+  daily_limit: 1000
+  max_context_length: 131072
+  capabilities:
+  - text
+  - coding
+  compression:
+    mode: normal
+    preserve_structure: true
+    max_compression_ratio: 0.4
+  routing:
+    cost_level: medium
+    complexity_support:
+    - simple
+    - moderate
+    - complex
+    priority: 1
+- name: mistral/mistral-large-latest
+  protocol: openai
+  endpoint: https://api.mistral.ai/v1
+  api_key: ${MISTRAL_API_KEY}
+  enabled: true
+  rpm: 30
+  tpm: 15000
+  max_concurrent: 10
+  daily_limit: 1000
+  max_context_length: 128000
+  capabilities:
+  - text
+  - coding
+  compression:
+    mode: soft
+    preserve_structure: true
+    max_compression_ratio: 0.3
+  routing:
+    cost_level: medium
+    complexity_support:
+    - simple
+    - moderate
+    priority: 2
+- name: mistral/mistral-medium-latest
+  protocol: openai
+  endpoint: https://api.mistral.ai/v1
+  api_key: ${MISTRAL_API_KEY}
+  enabled: true
+  rpm: 30
+  tpm: 15000
+  max_concurrent: 10
+  daily_limit: 1000
+  max_context_length: 128000
+  capabilities:
+  - text
+  compression:
+    mode: soft
+    preserve_structure: true
+    max_compression_ratio: 0.3
+  routing:
+    cost_level: low
+    complexity_support:
+    - simple
+    - moderate
+    priority: 3
+- name: gemini/gemini-2.5-flash
+  protocol: openai
+  endpoint: https://generativelanguage.googleapis.com/v1beta
+  api_key: ${GEMINI_API_KEY}
+  enabled: true
+  rpm: 15
+  tpm: 1000000
+  max_concurrent: 5
+  daily_limit: 1500
+  max_context_length: 1048576
+  capabilities:
+  - text
+  - vision
+  compression:
+    mode: normal
+    preserve_structure: true
+    max_compression_ratio: 0.5
+  routing:
+    cost_level: low
+    complexity_support:
+    - simple
+    - moderate
+    priority: 1
+- name: cerebras/qwen-3-235b-a22b-instruct
+  protocol: openai
+  endpoint: https://api.cerebras.ai/v1
+  api_key: ${CEREBRAS_API_KEY}
+  enabled: true
+  rpm: 30
+  tpm: 999999999
+  max_concurrent: 100
+  daily_limit: 1000
+  max_context_length: 131072
+  capabilities:
+  - text
+  - coding
+  compression:
+    mode: normal
+    preserve_structure: true
+    max_compression_ratio: 0.4
+  routing:
+    cost_level: high
+    complexity_support:
+    - simple
+    - moderate
+    - complex
+    priority: 0
+- name: ollama/llama3
+  protocol: ollama
+  endpoint: http://localhost:11434
+  api_key: ''
+  enabled: false
+  rpm: 100
+  tpm: 999999999
+  max_concurrent: 10
+  max_context_length: 8192
+  capabilities:
+  - text
+  - coding
+  compression:
+    mode: soft
+    preserve_structure: true
+    max_compression_ratio: 0.3
+  routing:
+    cost_level: free
+    complexity_support:
+    - simple
+    priority: 4

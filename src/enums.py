@@ -67,4 +67,23 @@ DEFAULT_CONFIG = {
         "enabled": True,
         "update_interval": 300,
     },
+    "sandbox": {
+        "enabled": True,
+        "max_output_bytes": 50000,
+        "timeout_seconds": 30,
+        "index_db_path": "~/.openllm/sandbox/content_index.db",
+    },
+    "session": {
+        "affinity_enabled": True,
+        "cache_ttl": 3600,
+        "event_tracking": True,
+        "max_events_per_session": 200,
+    },
+    "prompt_enhancement": {
+        "code_thinking_auto": True,
+        "code_thinking_language": "en",
+        "terse_enabled": False,
+        "terse_intensity": "moderate",
+        "terse_language": "en",
+    },
 }

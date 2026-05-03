@@ -1,338 +1,199 @@
 # API Reference
 
-## Endpoints
+## Base URL
 
-### OpenAI Compatible Endpoints
+```
+http://localhost:8000
+```
 
-#### POST /v1/chat/completions
+## Authentication
 
-Create a chat completion.
+For remote access, include your agent's API key:
+
+```
+X-API-Key: sk-your-agent-key
+```
+
+Or use agent ID directly:
+```
+X-Agent-ID: nanobot
+```
+
+## Core Endpoints
+
+### Chat Completion
+
+```
+POST /v1/chat/completions
+```
 
 **Request:**
-
 ```json
 {
-  "model": "meta-model",
-  "messages": [
-    {"role": "system", "content": "You are a helpful assistant."},
-    {"role": "user", "content": "Hello!"}
-  ],
+  "model": "qwen3.6-plus",
+  "messages": [{"role": "user", "content": "Hello"}],
   "temperature": 0.7,
   "max_tokens": 2048,
   "stream": false,
-  "session_id": "optional-session-id",
-  "model_type": "text",
-  "model_scale": "large"
+  "session_id": "conv-123",
+  "agent_id": "nanobot",
+  "code_thinking": true,
+  "terse": true,
+  "terse_intensity": "moderate"
 }
 ```
 
-**Parameters:**
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `model` | string | Yes | - | Model name or `meta-model` |
-| `messages` | array | Yes | - | Messages array |
-| `temperature` | float | No | 0.7 | Sampling temperature (0-2) |
-| `max_tokens` | integer | No | 2048 | Max tokens to generate |
-| `stream` | boolean | No | false | Enable streaming |
-| `session_id` | string | No | - | Session ID for affinity |
-| `model_type` | string | No | - | Filter: `text`, `coding`, `ocr` |
-| `model_scale` | string | No | - | Filter: `small`, `medium`, `large` |
-
 **Response:**
-
 ```json
 {
-  "id": "chatcmpl-123",
+  "id": "cmpl-xxx",
   "object": "chat.completion",
-  "created": 1700000000,
-  "model": "meta-model",
-  "choices": [
-    {
-      "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "Hello! How can I help you?"
-      },
-      "finish_reason": "stop"
-    }
-  ],
-  "usage": {
-    "prompt_tokens": 10,
-    "completion_tokens": 8,
-    "total_tokens": 18
-  }
+  "created": 1777780101,
+  "model": "qwen3.6-plus",
+  "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello!"}, "finish_reason": "stop"}],
+  "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+  "code_thinking_enabled": true,
+  "terse_enabled": true,
+  "terse_intensity": "moderate"
 }
 ```
 
-**Error Response (429):**
+### List Models
 
-```json
+```
+GET /v1/models
+```
+
+### Health Check
+
+```
+GET /v1/health
+→ {"status": "ok", "timestamp": 1777780101}
+```
+
+### Usage Stats
+
+```
+GET /v1/usage
+```
+
+### Model Scores
+
+```
+GET /v1/scores
+POST /v1/scores/refresh
+```
+
+## Agent Endpoints
+
+### List Agents
+
+```
+GET /api/session/agents
+```
+
+### Register Agent
+
+```
+POST /api/session/agents/register
 {
-  "message": "Rate limit exceeded",
-  "type": "error",
-  "code": 429
+  "agent_id": "my-agent",
+  "name": "My Agent",
+  "platform": "custom",
+  "api_key": "sk-custom-key",
+  "default_model": "qwen3.6-plus",
+  "code_thinking_enabled": true,
+  "terse_enabled": true,
+  "terse_intensity": "moderate"
 }
 ```
 
----
-
-#### GET /v1/models
-
-List available models.
-
-**Response:**
-
-```json
-{
-  "object": "list",
-  "data": [
-    {
-      "id": "groq/llama-3.3-70b-versatile",
-      "object": "model",
-      "created": 1700000000,
-      "owned_by": "groq"
-    }
-  ]
-}
-```
-
-**Query Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `model_type` | Filter by type (`text`, `coding`, `ocr`) |
-| `model_scale` | Filter by scale (`small`, `medium`, `large`) |
-
----
-
-#### GET /v1/models/{model}
-
-Get model information.
-
-**Response:**
-
-```json
-{
-  "id": "groq/llama-3.3-70b-versatile",
-  "object": "model",
-  "created": 1700000000,
-  "owned_by": "groq"
-}
-```
-
----
-
-#### GET /v1/usage
-
-Get usage statistics.
-
-**Response:**
-
-```json
-{
-  "total_requests": 1000,
-  "total_tokens": 50000,
-  "model_usage": {
-    "groq/llama-3.3-70b-versatile": {
-      "success": 950,
-      "failure": 50,
-      "total": 1000
-    }
-  }
-}
-```
-
----
-
-### OpenLLM Extensions
-
-#### GET /v1/scores
-
-Get model scores.
-
-**Response:**
-
-```json
-{
-  "models": [
-    {
-      "name": "groq/llama-3.3-70b-versatile",
-      "total_score": 0.85,
-      "quality_score": 0.80,
-      "speed_score": 0.90,
-      "context_score": 0.75,
-      "reliability_score": 0.95,
-      "last_updated": "2024-01-01T00:00:00"
-    }
-  ]
-}
-```
-
----
-
-#### POST /v1/scores/refresh
-
-Refresh model scores.
-
-**Response:**
-
-```json
-{
-  "status": "Scores refreshed"
-}
-```
-
----
-
-#### GET /health
-
-Health check.
-
-**Response:**
-
-```json
-{
-  "status": "ok",
-  "timestamp": 1700000000
-}
-```
-
----
-
-## Message Format
-
-### Message Object
-
-```json
-{
-  "role": "user" | "assistant" | "system",
-  "content": "Message content"
-}
-```
-
-**Roles:**
-- `system`: System instructions
-- `user`: User messages
-- `assistant`: Assistant responses
-
----
-
-## Usage Statistics
-
-### Usage Object
-
-```json
-{
-  "prompt_tokens": 10,
-  "completion_tokens": 8,
-  "total_tokens": 18
-}
-```
-
----
-
-## Error Codes
-
-| Code | Description |
-|------|-------------|
-| 400 | Bad Request |
-| 401 | Unauthorized |
-| 404 | Model Not Found |
-| 429 | Rate Limited |
-| 500 | Internal Server Error |
-| 503 | No Available Models |
-
----
-
-## Rate Limits
-
-Rate limits are configured per-model in `models.yaml`:
-
-```yaml
-- name: "model-name"
-  rpm: 30          # Requests per minute
-  tpm: 15000     # Tokens per minute
-  max_concurrent: 10
-  daily_limit: 1000
-```
-
----
-
-## Streaming
-
-Enable streaming by setting `stream: true`:
-
-```bash
-curl -N http://localhost:8000/v1/chat/completions \
-  -H "Authorization: Bearer openllm" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "meta-model",
-    "messages": [{"role": "user", "content": "Count to 5"}],
-    "stream": true
-  }'
-```
-
-**Stream Response:**
+### Generate API Key
 
 ```
-data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1700000000,"model":"meta-model","choices":[{"index":0,"delta":{"role":"assistant","content":"1"},"finish_reason":null}]}
-
-data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1700000000,"model":"meta-model","choices":[{"index":0,"delta":{"content":" 2"},"finish_reason":null}]}
-
-data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1700000000,"model":"meta-model","choices":[{"index":0,"delta":{"content":" 3"},"finish_reason":null}]}
-
-data: [DONE]
+POST /api/session/agents/{agent_id}/generate-key
 ```
 
----
+### View Keys (Masked)
 
-## Examples
-
-### Python SDK
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="http://localhost:8000/v1",
-    api_key="openllm"
-)
-
-response = client.chat.completions.create(
-    model="meta-model",
-    messages=[{"role": "user", "content": "Hello!"}]
-)
-
-print(response.choices[0].message.content)
+```
+GET /api/session/agents/{agent_id}/keys
 ```
 
-### cURL
+### Usage
 
-```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Authorization: Bearer openllm" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "meta-model",
-    "messages": [
-      {"role": "user", "content": "What is 2+2?"}
-    ]
-  }'
+```
+GET /api/session/agents/{agent_id}/usage
+GET /api/session/agents/usage/all
 ```
 
-### LangChain
+## Sandbox Endpoints
 
-```python
-from langchain_openai import ChatOpenAI
+### Execute Code
 
-llm = ChatOpenAI(
-    base_url="http://localhost:8000/v1",
-    api_key="openllm",
-    model="meta-model"
-)
-
-response = llm.invoke("Hello!")
-print(response.content)
 ```
+POST /api/sandbox/execute
+{"language": "python", "code": "print('hello')"}
+```
+
+### Batch Execution
+
+```
+POST /api/sandbox/batch
+{"commands": [{"language": "python", "code": "print(1+1)", "label": "test"}]}
+```
+
+### Index Content
+
+```
+POST /api/sandbox/index
+{"source": "docs/api", "content": "...", "content_type": "markdown"}
+```
+
+### Search
+
+```
+GET /api/sandbox/search?q=installation
+```
+
+### Stats
+
+```
+GET /api/sandbox/stats
+GET /api/sandbox/languages
+```
+
+### Purge Index
+
+```
+DELETE /api/sandbox/purge
+```
+
+## Session Endpoints
+
+### Extract/Search Events
+
+```
+POST /api/session/events
+GET  /api/session/events?q=error&session_id=conv-123
+```
+
+### Get Context
+
+```
+GET /api/session/context?session_id=conv-123
+```
+
+### Delete Session
+
+```
+DELETE /api/session/{session_id}
+```
+
+## Admin Panel
+
+```
+GET /admin/
+```
+
+Web-based management UI. No API key required for local access.

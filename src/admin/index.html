@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenLLM Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .tab-active { border-bottom: 2px solid #3b82f6; color: #3b82f6; font-weight: 600; }
+    .card { @apply bg-gray-800 rounded-xl p-5 border border-gray-700; }
+    .btn { @apply px-4 py-2 rounded-lg font-medium transition-colors; }
+    .btn-primary { @apply bg-blue-600 hover:bg-blue-700 text-white; }
+    .btn-danger { @apply bg-red-600 hover:bg-red-700 text-white; }
+    .btn-secondary { @apply bg-gray-700 hover:bg-gray-600 text-gray-200; }
+    .btn-success { @apply bg-green-600 hover:bg-green-700 text-white; }
+    .input { @apply bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 w-full; }
+    .label { @apply text-sm font-medium text-gray-300 mb-1 block; }
+    .badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
+    .badge-green { @apply bg-green-900 text-green-200; }
+    .badge-red { @apply bg-red-900 text-red-200; }
+    .badge-yellow { @apply bg-yellow-900 text-yellow-200; }
+    .badge-blue { @apply bg-blue-900 text-blue-200; }
+    table th { @apply text-left text-xs font-medium text-gray-400 uppercase tracking-wider pb-2; }
+    table td { @apply py-3 text-sm text-gray-300; }
+    table tbody tr { @apply border-t border-gray-700; }
+    .toast { @apply fixed top-4 right-4 z-50 px-4 py-3 rounded-lg text-white shadow-lg transition-all duration-300; }
+    .toast-success { @apply bg-green-600; }
+    .toast-error { @apply bg-red-600; }
+    .toast-info { @apply bg-blue-600; }
+    pre { @apply bg-gray-900 rounded-lg p-4 text-sm font-mono text-green-400 overflow-x-auto; }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Header -->
+  <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">🚀</span>
+        <h1 class="text-lg font-bold">OpenLLM Admin</h1>
+        <span id="health-badge" class="badge badge-green ml-2">● Online</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="api-url" class="text-xs text-gray-400 font-mono bg-gray-800 px-2 py-1 rounded">/api</span>
+        <button onclick="refreshAll()" class="btn btn-secondary text-sm" title="刷新全部数据">🔄 刷新</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <nav class="max-w-7xl mx-auto px-4 border-b border-gray-800">
+    <div class="flex gap-6 -mb-px overflow-x-auto">
+      <button class="tab py-3 px-1 tab-active" data-tab="dashboard">📊 概览</button>
+      <button class="tab py-3 px-1 text-gray-400" data-tab="agents">🤖 Agent 管理</button>
+      <button class="tab py-3 px-1 text-gray-400" data-tab="sessions">💬 会话</button>
+      <button class="tab py-3 px-1 text-gray-400" data-tab="sandbox">🧪 沙盒</button>
+      <button class="tab py-3 px-1 text-gray-400" data-tab="models">📦 模型</button>
+      <button class="tab py-3 px-1 text-gray-400" data-tab="settings">⚙️ 配置</button>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Tab: Dashboard -->
+    <div id="tab-dashboard" class="tab-content">
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="card">
+          <div class="text-sm text-gray-400">总 Agent 数</div>
+          <div id="stat-agents" class="text-3xl font-bold text-blue-400 mt-1">-</div>
+        </div>
+        <div class="card">
+          <div class="text-sm text-gray-400">今日请求</div>
+          <div id="stat-requests" class="text-3xl font-bold text-green-400 mt-1">-</div>
+        </div>
+        <div class="card">
+          <div class="text-sm text-gray-400">今日 Tokens</div>
+          <div id="stat-tokens" class="text-3xl font-bold text-purple-400 mt-1">-</div>
+        </div>
+        <div class="card">
+          <div class="text-sm text-gray-400">可用语言</div>
+          <div id="stat-languages" class="text-3xl font-bold text-yellow-400 mt-1">-</div>
+        </div>
+      </div>
+
+      <!-- Agent Usage Chart -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="card">
+          <h3 class="font-semibold mb-4">Agent 用量（今日）</h3>
+          <canvas id="usage-chart" height="200"></canvas>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-4">Agent 请求分布</h3>
+          <canvas id="requests-chart" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Recent Events -->
+      <div class="card">
+        <h3 class="font-semibold mb-4">最近活动</h3>
+        <div id="recent-events" class="space-y-2 text-sm text-gray-400">
+          <p>加载中...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Agents -->
+    <div id="tab-agents" class="tab-content hidden">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">Agent 管理</h2>
+        <button onclick="showRegisterModal()" class="btn btn-primary">+ 注册 Agent</button>
+      </div>
+      <div class="card overflow-x-auto">
+        <table class="w-full">
+          <thead><tr>
+            <th>Agent ID</th>
+            <th>名称</th>
+            <th>平台</th>
+            <th>默认模型</th>
+            <th>Code Thinking</th>
+            <th>Terse</th>
+            <th>状态</th>
+            <th>API Key</th>
+            <th>操作</th>
+          </tr></thead>
+          <tbody id="agents-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Sessions -->
+    <div id="tab-sessions" class="tab-content hidden">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">会话与事件</h2>
+        <div class="flex gap-2">
+          <input id="session-search" type="text" placeholder="搜索事件..." class="input w-48" onkeydown="if(event.key==='Enter')searchEvents()">
+          <button onclick="searchEvents()" class="btn btn-primary">搜索</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <select id="session-filter" class="input w-48" onchange="loadSessionEvents()">
+            <option value="">全部 Agent</option>
+          </select>
+          <span id="event-count" class="text-sm text-gray-400"></span>
+        </div>
+        <div id="events-list" class="space-y-2 max-h-96 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <!-- Tab: Sandbox -->
+    <div id="tab-sandbox" class="tab-content hidden">
+      <h2 class="text-xl font-bold mb-4">沙盒工具</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="card">
+          <h3 class="font-semibold mb-4">运行时支持</h3>
+          <div id="sandbox-runtimes" class="space-y-2"></div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-4">内容索引</h3>
+          <div id="sandbox-index" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <!-- Quick Test -->
+      <div class="card">
+        <h3 class="font-semibold mb-4">快速测试 — 代码执行</h3>
+        <div class="space-y-3">
+          <div class="flex gap-2">
+            <select id="exec-lang" class="input w-32">
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+              <option value="shell">Shell</option>
+            </select>
+            <input id="exec-code" type="text" class="input flex-1" placeholder="输入代码..." value="print('Hello from sandbox!')">
+            <button onclick="testExecute()" class="btn btn-primary">执行</button>
+          </div>
+          <pre id="exec-result" class="hidden"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Models -->
+    <div id="tab-models" class="tab-content hidden">
+      <h2 class="text-xl font-bold mb-4">模型状态</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="card">
+          <h3 class="font-semibold mb-4">模型列表</h3>
+          <div id="models-list" class="space-y-2"></div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-4">模型评分</h3>
+          <div id="models-scores" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Settings -->
+    <div id="tab-settings" class="tab-content hidden">
+      <h2 class="text-xl font-bold mb-4">系统配置</h2>
+      <div class="card space-y-4">
+        <div>
+          <label class="label">API 地址</label>
+          <input id="cfg-api-url" type="text" class="input" value="/api" onchange="updateApiUrl()">
+          <p class="text-xs text-gray-500 mt-1">OpenLLM API 基础路径（相对路径或完整 URL）</p>
+        </div>
+        <div>
+          <label class="label">自动刷新间隔</label>
+          <select id="cfg-refresh-interval" class="input w-48" onchange="setAutoRefresh()">
+            <option value="0">不自动刷新</option>
+            <option value="10">每 10 秒</option>
+            <option value="30" selected>每 30 秒</option>
+            <option value="60">每 60 秒</option>
+          </select>
+        </div>
+        <div class="pt-4 border-t border-gray-700">
+          <button onclick="testHealth()" class="btn btn-secondary">测试连接</button>
+          <button onclick="exportConfig()" class="btn btn-secondary ml-2">导出配置</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Register Modal -->
+  <div id="register-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+    <div class="card w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <h3 class="text-lg font-bold mb-4">注册新 Agent</h3>
+      <form id="register-form" onsubmit="registerAgent(event)" class="space-y-3">
+        <div><label class="label">Agent ID *</label><input id="reg-id" required class="input" placeholder="my-agent"></div>
+        <div><label class="label">名称</label><input id="reg-name" class="input" placeholder="My Agent"></div>
+        <div><label class="label">平台</label>
+          <select id="reg-platform" class="input">
+            <option value="nanobot">Nanobot</option>
+            <option value="hermes">Hermes</option>
+            <option value="claude-code">Claude Code</option>
+            <option value="cursor">Cursor</option>
+            <option value="copilot">GitHub Copilot</option>
+            <option value="custom">自定义</option>
+          </select>
+        </div>
+        <div><label class="label">API Key（留空自动生成）</label><input id="reg-key" class="input" placeholder="sk-..."></div>
+        <div><label class="label">默认模型</label><input id="reg-model" class="input" placeholder="qwen3.6-plus"></div>
+        <div class="flex gap-4">
+          <label class="flex items-center gap-2"><input type="checkbox" id="reg-ct" checked class="accent-blue-500"> Code Thinking</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="reg-terse" class="accent-blue-500"> Terse 模式</label>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="submit" class="btn btn-primary flex-1">注册</button>
+          <button type="button" onclick="hideRegisterModal()" class="btn btn-secondary">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- API Key Modal -->
+  <div id="key-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+    <div class="card w-full max-w-md">
+      <h3 class="text-lg font-bold mb-2">API Key 已生成</h3>
+      <p class="text-sm text-yellow-400 mb-3">⚠️ 请妥善保存，此 Key 不会再显示第二次！</p>
+      <pre id="new-key-display" class="mb-4 select-all"></pre>
+      <div class="flex gap-2">
+        <button onclick="copyKey()" class="btn btn-primary flex-1">📋 复制</button>
+        <button onclick="hideKeyModal()" class="btn btn-secondary">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ============================================================
+  // Config & API
+  // ============================================================
+  let API_BASE = '';  // relative, same origin
+  let autoRefreshTimer = null;
+  let usageChart = null;
+  let requestsChart = null;
+
+  function api(path) {
+    return API_BASE + path;
+  }
+
+  async function fetchJSON(path, opts = {}) {
+    try {
+      const resp = await fetch(api(path), {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+      return await resp.json();
+    } catch (e) {
+      showToast(e.message, 'error');
+      throw e;
+    }
+  }
+
+  // ============================================================
+  // Toast
+  // ============================================================
+  function showToast(msg, type = 'info') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast toast-${type}`;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 3000);
+  }
+
+  // ============================================================
+  // Tabs
+  // ============================================================
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('tab-active'));
+      tab.classList.add('tab-active');
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+      document.getElementById('tab-' + tab.dataset.tab).classList.remove('hidden');
+    });
+  });
+
+  // ============================================================
+  // Refresh All
+  // ============================================================
+  async function refreshAll() {
+    await Promise.allSettled([
+      loadDashboard(),
+      loadAgents(),
+      loadSandbox(),
+      loadModels(),
+    ]);
+    showToast('数据已刷新', 'success');
+  }
+
+  // ============================================================
+  // Dashboard
+  // ============================================================
+  async function loadDashboard() {
+    try {
+      // Load agents
+      const agents = await fetchJSON('/api/session/agents');
+      document.getElementById('stat-agents').textContent = agents.agents?.length || 0;
+
+      // Load usage
+      const usage = await fetchJSON('/api/session/agents/usage/all');
+      let totalReqs = 0, totalTokens = 0;
+      const agentNames = [], agentTokens = [], agentReqs = [];
+
+      (usage.agents || []).forEach(a => {
+        totalReqs += a.today_requests || 0;
+        totalTokens += a.today_tokens || 0;
+        agentNames.push(a.agent_id);
+        agentTokens.push(a.today_tokens || 0);
+        agentReqs.push(a.today_requests || 0);
+      });
+
+      document.getElementById('stat-requests').textContent = totalReqs;
+      document.getElementById('stat-tokens').textContent = formatNum(totalTokens);
+
+      // Load sandbox languages
+      try {
+        const sandbox = await fetchJSON('/api/sandbox/languages');
+        document.getElementById('stat-languages').textContent = sandbox.available?.length || 0;
+      } catch {
+        document.getElementById('stat-languages').textContent = '-';
+      }
+
+      // Charts
+      renderUsageChart(agentNames, agentTokens, agentReqs);
+
+      // Recent events (from agents usage)
+      const eventsEl = document.getElementById('recent-events');
+      const recent = (usage.agents || [])
+        .filter(a => a.last_request_at)
+        .sort((a, b) => b.last_request_at.localeCompare(a.last_request_at))
+        .slice(0, 5);
+
+      if (recent.length === 0) {
+        eventsEl.innerHTML = '<p class="text-gray-500">暂无活动记录</p>';
+      } else {
+        eventsEl.innerHTML = recent.map(a => `
+          <div class="flex items-center gap-3 py-1">
+            <span class="badge badge-blue">${a.agent_id}</span>
+            <span class="text-gray-400">${a.today_requests} 次请求</span>
+            <span class="text-gray-500">${formatNum(a.today_tokens)} tokens</span>
+            <span class="text-gray-600 text-xs ml-auto">${timeAgo(a.last_request_at)}</span>
+          </div>
+        `).join('');
+      }
+
+    } catch (e) {
+      console.error('Dashboard load error:', e);
+    }
+  }
+
+  function renderUsageChart(names, tokens, reqs) {
+    const ctx1 = document.getElementById('usage-chart').getContext('2d');
+    const ctx2 = document.getElementById('requests-chart').getContext('2d');
+
+    if (usageChart) usageChart.destroy();
+    if (requestsChart) requestsChart.destroy();
+
+    usageChart = new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: names.length ? names : ['暂无数据'],
+        datasets: [{ label: 'Tokens', data: tokens.length ? tokens : [0], backgroundColor: '#8b5cf6' }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    requestsChart = new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: names.length ? names : ['暂无数据'],
+        datasets: [{ data: reqs.length ? reqs : [0], backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'] }]
+      },
+      options: { responsive: true }
+    });
+  }
+
+  // ============================================================
+  // Agents
+  // ============================================================
+  async function loadAgents() {
+    const data = await fetchJSON('/api/session/agents');
+    const tbody = document.getElementById('agents-table');
+
+    // Update session filter dropdown
+    const filter = document.getElementById('session-filter');
+    filter.innerHTML = '<option value="">全部 Agent</option>' +
+      (data.agents || []).map(a => `<option value="${a.agent_id}">${a.agent_id}</option>`).join('');
+
+    if (!data.agents?.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center py-8 text-gray-500">暂无 Agent</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.agents.map(a => `
+      <tr>
+        <td class="font-mono text-sm">${a.agent_id}</td>
+        <td>${a.name}</td>
+        <td><span class="badge badge-blue">${a.platform || 'unknown'}</span></td>
+        <td class="font-mono text-xs">${a.default_model || '-'}</td>
+        <td>${a.code_thinking_enabled ? '<span class="text-green-400">✅</span>' : '—'}</td>
+        <td>${a.terse_enabled ? `<span class="badge badge-yellow">${a.terse_intensity || 'moderate'}</span>` : '—'}</td>
+        <td>${a.enabled ? '<span class="badge badge-green">启用</span>' : '<span class="badge badge-red">禁用</span>'}</td>
+        <td>
+          <button onclick="showAgentKey('${a.agent_id}')" class="text-blue-400 hover:text-blue-300 text-sm">🔑 查看</button>
+        </td>
+        <td>
+          <div class="flex gap-1">
+            <button onclick="regenerateKey('${a.agent_id}')" class="text-yellow-400 hover:text-yellow-300 text-sm" title="重新生成 Key">🔄</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function showRegisterModal() {
+    document.getElementById('register-modal').classList.remove('hidden');
+    document.getElementById('register-form').reset();
+  }
+
+  function hideRegisterModal() {
+    document.getElementById('register-modal').classList.add('hidden');
+  }
+
+  async function registerAgent(e) {
+    e.preventDefault();
+    const data = {
+      agent_id: document.getElementById('reg-id').value.trim(),
+      name: document.getElementById('reg-name').value.trim(),
+      platform: document.getElementById('reg-platform').value,
+      api_key: document.getElementById('reg-key').value.trim() || undefined,
+      default_model: document.getElementById('reg-model').value.trim(),
+      code_thinking_enabled: document.getElementById('reg-ct').checked,
+      terse_enabled: document.getElementById('reg-terse').checked,
+      terse_intensity: 'moderate',
+    };
+
+    try {
+      const resp = await fetchJSON('/api/session/agents/register', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+
+      hideRegisterModal();
+      showToast(`Agent ${data.agent_id} 注册成功`, 'success');
+
+      if (resp.api_key) {
+        showNewKey(resp.api_key);
+      }
+
+      await loadAgents();
+      await loadDashboard();
+    } catch (e) {
+      console.error('Register error:', e);
+    }
+  }
+
+  async function showAgentKey(agentId) {
+    try {
+      const data = await fetchJSON(`/api/session/agents/${agentId}/keys`);
+      if (data.has_key) {
+        showToast(`Key: ${data.masked_key}`, 'info');
+      } else {
+        showToast('此 Agent 暂无 API Key', 'info');
+      }
+    } catch (e) {}
+  }
+
+  async function regenerateKey(agentId) {
+    if (!confirm(`确定要为 ${agentId} 重新生成 API Key 吗？旧 Key 将失效。`)) return;
+
+    try {
+      const resp = await fetchJSON(`/api/session/agents/${agentId}/generate-key`, { method: 'POST' });
+      if (resp.api_key) {
+        showNewKey(resp.api_key);
+      }
+      showToast(`${agentId} 的新 Key 已生成`, 'success');
+    } catch (e) {}
+  }
+
+  function showNewKey(key) {
+    document.getElementById('new-key-display').textContent = key;
+    document.getElementById('key-modal').classList.remove('hidden');
+  }
+
+  function hideKeyModal() {
+    document.getElementById('key-modal').classList.add('hidden');
+  }
+
+  function copyKey() {
+    const key = document.getElementById('new-key-display').textContent;
+    navigator.clipboard.writeText(key).then(() => showToast('已复制到剪贴板', 'success'));
+  }
+
+  // ============================================================
+  // Sessions / Events
+  // ============================================================
+  async function searchEvents() {
+    const q = document.getElementById('session-search').value.trim();
+    if (!q) return;
+
+    // Search across all agents
+    const listEl = document.getElementById('events-list');
+    listEl.innerHTML = '<p class="text-gray-500">搜索中...</p>';
+
+    try {
+      // Get agent list first
+      const agents = await fetchJSON('/api/session/agents');
+      const results = [];
+
+      for (const a of (agents.agents || [])) {
+        try {
+          const events = await fetchJSON(`/api/session/events?q=${encodeURIComponent(q)}&session_id=${a.agent_id}&max_events=5`);
+          if (events.results?.length) {
+            results.push(...events.results.map(r => ({...r, agent: a.agent_id})));
+          }
+        } catch {}
+      }
+
+      if (results.length === 0) {
+        listEl.innerHTML = '<p class="text-gray-500 text-center py-8">未找到匹配事件</p>';
+      } else {
+        listEl.innerHTML = results.map(e => `
+          <div class="flex items-start gap-3 py-2 border-t border-gray-800">
+            <span class="badge badge-blue mt-0.5">${e.agent}</span>
+            <span class="badge badge-yellow">${e.event_type || 'event'}</span>
+            <div class="flex-1">
+              <div class="text-gray-200">${e.summary || e.title || ''}</div>
+              <div class="text-gray-500 text-xs mt-0.5">${e.data?.substring(0, 100) || ''}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+    } catch (e) {
+      listEl.innerHTML = '<p class="text-red-400">搜索失败</p>';
+    }
+  }
+
+  async function loadSessionEvents() {
+    const agentId = document.getElementById('session-filter').value;
+    const listEl = document.getElementById('events-list');
+
+    if (!agentId) {
+      listEl.innerHTML = '<p class="text-gray-500 text-center py-4">选择一个 Agent 查看事件</p>';
+      return;
+    }
+
+    listEl.innerHTML = '<p class="text-gray-500">加载中...</p>';
+    try {
+      const events = await fetchJSON(`/api/session/events?q=*&session_id=${agentId}&max_events=50`);
+      document.getElementById('event-count').textContent = `${events.count || 0} 个事件`;
+
+      if (!events.results?.length) {
+        listEl.innerHTML = '<p class="text-gray-500 text-center py-4">暂无事件</p>';
+      } else {
+        listEl.innerHTML = events.results.map(e => `
+          <div class="flex items-start gap-3 py-2 border-t border-gray-800">
+            <span class="badge badge-yellow">${e.event_type || 'event'}</span>
+            <div class="flex-1">
+              <div class="text-gray-200">${e.summary || e.title || ''}</div>
+              <div class="text-gray-500 text-xs mt-0.5">${e.data?.substring(0, 120) || ''}</div>
+            </div>
+            <span class="text-gray-600 text-xs">${e.rank?.toFixed(3) || ''}</span>
+          </div>
+        `).join('');
+      }
+    } catch (e) {
+      listEl.innerHTML = '<p class="text-red-400">加载失败</p>';
+    }
+  }
+
+  // ============================================================
+  // Sandbox
+  // ============================================================
+  async function loadSandbox() {
+    try {
+      const langs = await fetchJSON('/api/sandbox/languages');
+      const stats = await fetchJSON('/api/sandbox/stats');
+
+      // Runtimes
+      const rtEl = document.getElementById('sandbox-runtimes');
+      rtEl.innerHTML = (langs.available || []).map(l => `
+        <div class="flex items-center gap-2">
+          <span class="badge badge-green">${l}</span>
+          <span class="text-gray-400 text-sm">可用</span>
+        </div>
+      `).join('') || '<p class="text-gray-500">无可用运行时</p>';
+
+      // Index stats
+      const idx = stats.index || {};
+      document.getElementById('sandbox-index').innerHTML = `
+        <div class="grid grid-cols-2 gap-3">
+          <div><div class="text-sm text-gray-400">文档数</div><div class="text-xl font-bold text-blue-400">${idx.total_documents || 0}</div></div>
+          <div><div class="text-sm text-gray-400">分块数</div><div class="text-xl font-bold text-green-400">${idx.total_chunks || 0}</div></div>
+          <div><div class="text-sm text-gray-400">总大小</div><div class="text-xl font-bold text-purple-400">${formatBytes(idx.total_bytes || 0)}</div></div>
+          <div><div class="text-sm text-gray-400">来源数</div><div class="text-xl font-bold text-yellow-400">${Object.keys(idx.sources || {}).length}</div></div>
+        </div>
+      `;
+    } catch (e) {}
+  }
+
+  async function testExecute() {
+    const lang = document.getElementById('exec-lang').value;
+    const code = document.getElementById('exec-code').value;
+    const resultEl = document.getElementById('exec-result');
+
+    resultEl.classList.remove('hidden');
+    resultEl.textContent = '执行中...';
+
+    try {
+      const resp = await fetchJSON('/api/sandbox/execute', {
+        method: 'POST',
+        body: JSON.stringify({ language: lang, code }),
+      });
+
+      resultEl.textContent = `Status: ${resp.success ? '✅ Success' : '❌ Failed'} | Exit: ${resp.exit_code} | Time: ${resp.duration_ms.toFixed(0)}ms | Size: ${formatBytes(resp.raw_bytes)}\n\n--- stdout ---\n${resp.stdout}\n${resp.stderr ? '\n--- stderr ---\n' + resp.stderr : ''}`;
+    } catch (e) {
+      resultEl.textContent = `Error: ${e.message}`;
+    }
+  }
+
+  // ============================================================
+  // Models
+  // ============================================================
+  async function loadModels() {
+    try {
+      const models = await fetchJSON('/v1/models');
+      const listEl = document.getElementById('models-list');
+      listEl.innerHTML = (models.data || []).map(m => `
+        <div class="flex items-center gap-2 py-1">
+          <span class="badge badge-blue">${m.id}</span>
+          <span class="text-gray-500 text-sm">${m.owned_by}</span>
+        </div>
+      `).join('') || '<p class="text-gray-500">暂无模型</p>';
+
+      // Scores
+      const scores = await fetchJSON('/v1/scores');
+      const scoresEl = document.getElementById('models-scores');
+      scoresEl.innerHTML = (scores.models || []).map(m => `
+        <div class="flex items-center justify-between py-1">
+          <span class="font-mono text-sm">${m.name}</span>
+          <span class="text-yellow-400">${m.total_score?.toFixed(1) || '-'}</span>
+        </div>
+      `).join('') || '<p class="text-gray-500">暂无评分数据</p>';
+    } catch (e) {}
+  }
+
+  // ============================================================
+  // Settings
+  // ============================================================
+  function updateApiUrl() {
+    API_BASE = document.getElementById('cfg-api-url').value.replace(/\/+$/, '');
+    showToast('API 地址已更新', 'success');
+    refreshAll();
+  }
+
+  function setAutoRefresh() {
+    const interval = parseInt(document.getElementById('cfg-refresh-interval').value);
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    if (interval > 0) {
+      autoRefreshTimer = setInterval(refreshAll, interval * 1000);
+      showToast(`自动刷新已开启 (${interval}s)`, 'info');
+    }
+  }
+
+  async function testHealth() {
+    try {
+      const resp = await fetch(api('/v1/health'));
+      const data = await resp.json();
+      showToast(`✅ 连接成功: ${JSON.stringify(data)}`, 'success');
+      document.getElementById('health-badge').className = 'badge badge-green ml-2';
+      document.getElementById('health-badge').textContent = '● Online';
+    } catch (e) {
+      showToast(`❌ 连接失败: ${e.message}`, 'error');
+      document.getElementById('health-badge').className = 'badge badge-red ml-2';
+      document.getElementById('health-badge').textContent = '● Offline';
+    }
+  }
+
+  function exportConfig() {
+    const config = {
+      api_base: API_BASE,
+      refresh_interval: document.getElementById('cfg-refresh-interval').value,
+    };
+    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'openllm-admin-config.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('配置已导出', 'success');
+  }
+
+  // ============================================================
+  // Utilities
+  // ============================================================
+  function formatNum(n) {
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  function formatBytes(b) {
+    if (b >= 1e6) return (b / 1e6).toFixed(1) + ' MB';
+    if (b >= 1e3) return (b / 1e3).toFixed(1) + ' KB';
+    return b + ' B';
+  }
+
+  function timeAgo(iso) {
+    if (!iso) return '';
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return '刚刚';
+    if (mins < 60) return `${mins}分钟前`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}小时前`;
+    return `${Math.floor(hrs / 24)}天前`;
+  }
+
+  // ============================================================
+  // Init
+  // ============================================================
+  refreshAll();
+  testHealth();
+  </script>
+</body>
+</html>

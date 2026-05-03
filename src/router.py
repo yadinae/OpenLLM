@@ -12,6 +12,8 @@ from src.token_optimizer import TokenOptimizer, CompressionMode
 from src.compression_strategy import get_compression_selector
 from src.complexity_scorer import get_scorer, ComplexityLevel
 from src.token_monitor import get_monitor
+from src.prompt_enhancer import get_enhancer
+from src.agent_registry import get_registry as get_agent_registry
 
 logger = logging.getLogger(__name__)
 
@@ -54,12 +56,56 @@ router = APIRouter(prefix="/v1")
 @router.post("/chat/completions")
 async def chat_completions(request: ChatRequest) -> ChatResponse:
     try:
+
+        # Get agent from request state (set by middleware)
+        # Note: We need to access the actual FastAPI Request object
+        # For now, use the agent_id from the request body or default
+        agent_id = request.agent_id or "default"
+        agent_registry = get_agent_registry()
+        agent = agent_registry.get_or_default(agent_id)
+
+        # Apply agent config defaults
+        effective_code_thinking = request.code_thinking
+        effective_terse = request.terse
+        effective_terse_intensity = request.terse_intensity
+        effective_model = request.model
+
+        # If not explicitly set, use agent defaults
+        if effective_code_thinking is None:
+            effective_code_thinking = agent.code_thinking_enabled
+        if effective_terse is None:
+            effective_terse = agent.terse_enabled
+        if effective_terse_intensity is None:
+            effective_terse_intensity = agent.terse_intensity
+        if effective_model == "meta-model" and agent.default_model:
+            effective_model = agent.default_model
+            request.model = effective_model
+
+        # Scope session_id by agent
+        if request.session_id:
+            session_prefix = agent_registry.get_session_prefix(agent_id)
+            if not request.session_id.startswith(session_prefix):
+                request.session_id = f"{session_prefix}{request.session_id}"
+
         # Step 1: Analyze request complexity
         routing_decision = _scorer.get_routing_decision(
             [m.model_dump() for m in request.messages],
             request.model
         )
-        
+
+        # Step 1.5: Apply prompt enhancement (code thinking + terse mode)
+        enhancer = get_enhancer()
+        enhance_result = enhancer.enhance(
+            messages=[m.model_dump() for m in request.messages],
+            enable_code_thinking=effective_code_thinking,
+            enable_terse=effective_terse,
+            terse_intensity=effective_terse_intensity,
+        )
+
+        # Update messages with enhanced version
+        from src.models import Message
+        request.messages = [Message(**msg) for msg in enhance_result.messages]
+
         # Step 2: Apply routing if recommended
         original_model = request.model
         if routing_decision["should_route"] and routing_decision["recommended_model"]:
@@ -69,45 +115,53 @@ async def chat_completions(request: ChatRequest) -> ChatResponse:
                 f"(complexity={routing_decision['complexity']}, "
                 f"score={routing_decision['score']:.2f})"
             )
-        
+
         # Step 3: Get model-specific optimizer
         model_name = request.model
         if model_name == "meta-model":
             optimizer = get_optimizer("default")
         else:
             optimizer = get_optimizer(model_name)
-        
+
         # Step 4: Apply token optimization to user messages
         optimized_messages = optimizer.optimize_messages(
             [m.model_dump() for m in request.messages],
             model=model_name
         )
-        
+
         # Step 5: Update request with optimized messages
-        from src.models import Message
         request.messages = [Message(**msg) for msg in optimized_messages]
-        
+
         # Step 6: Dispatch to model
         dispatcher = get_dispatcher()
         response = await dispatcher.dispatch(request)
-        
+
         # Step 7: Add routing metadata to response
         response.complexity = routing_decision["complexity"]
         response.routing_applied = routing_decision["should_route"]
         if routing_decision["recommended_model"]:
             response.recommended_model = routing_decision["recommended_model"]
-        
-        # Step 8: Record monitoring data
-        session_id = request.session_id or f"anonymous-{id(request)}"
+
+        # Step 8: Add prompt enhancement metadata
+        response.code_thinking_enabled = enhance_result.code_thinking_enabled
+        response.terse_enabled = enhance_result.terse_mode_enabled
+        response.terse_intensity = enhance_result.terse_intensity
+
+        # Step 9: Record agent usage
+        output_tokens = response.usage.completion_tokens if response.usage else 0
+        agent_registry.record_usage(agent_id, tokens=output_tokens)
+
+        # Step 10: Record monitoring data
+        session_id = request.session_id or f"{agent_id}:anonymous-{id(request)}"
         _monitor.record_request(
             session_id=session_id,
             request={"usage": response.usage.model_dump() if response.usage else {}},
             response={"usage": response.usage.model_dump() if response.usage else {}},
             compression_info={
-                "tokens_saved": 0  # Could be calculated from optimization stats
+                "tokens_saved": 0
             }
         )
-        
+
         return response
     except Exception as e:
         logger.error(f"Chat completion error: {e}")

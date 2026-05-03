@@ -41,6 +41,11 @@ class ChatResponse(BaseModel):
     routing_applied: Optional[bool] = Field(None, description="Whether auto-routing was applied")
     recommended_model: Optional[str] = Field(None, description="Recommended model for this request")
 
+    # Prompt enhancement metadata
+    code_thinking_enabled: Optional[bool] = Field(None, description="Whether code thinking was enabled")
+    terse_enabled: Optional[bool] = Field(None, description="Whether terse mode was enabled")
+    terse_intensity: Optional[str] = Field(None, description="Terse intensity applied")
+
 
 class ChatRequest(BaseModel):
     """Chat completion request"""
@@ -53,6 +58,14 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = Field(None, description="Session ID for affinity")
     model_type: Optional[str] = Field(None, description="Model type filter")
     model_scale: Optional[str] = Field(None, description="Model scale filter")
+
+    # Prompt enhancement options (context-mode inspired)
+    code_thinking: Optional[bool] = Field(None, description="Enable code thinking mode (auto if None)")
+    terse: Optional[bool] = Field(None, description="Enable terse output mode")
+    terse_intensity: Optional[str] = Field(None, description="Terse intensity: mild, moderate, extreme")
+
+    # Agent identification
+    agent_id: Optional[str] = Field(None, description="Agent ID for multi-agent support")
 
 
 class StreamChoice(BaseModel):

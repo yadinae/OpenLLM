@@ -16,6 +16,12 @@ from src.limiter import get_limiter
 from src.registry import get_registry
 from src.router import router
 from src.scorer import get_scorer
+from src.sandbox.router import router as sandbox_router
+from src.session_router import router as session_router
+from src.agent_middleware import AgentIdentificationMiddleware
+from src.agent_registry import get_registry as get_agent_registry
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -103,7 +109,17 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Add Agent identification middleware
+    app.add_middleware(AgentIdentificationMiddleware)
+
+    # Mount admin UI
+    admin_dir = Path(__file__).parent / "admin"
+    if admin_dir.exists():
+        app.mount("/admin", StaticFiles(directory=str(admin_dir), html=True), name="admin")
+
     app.include_router(router)
+    app.include_router(sandbox_router)
+    app.include_router(session_router)
 
     return app
 

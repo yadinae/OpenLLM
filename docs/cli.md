@@ -1,365 +1,159 @@
 # CLI Reference
 
-## Commands
-
-### serve
-
-Start the OpenLLM server.
+## Server Management
 
 ```bash
-openllm serve [OPTIONS]
-```
-
-**Options:**
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--host` | string | "0.0.0.0" | Server host |
-| `--port` | int | 8000 | Server port |
-| `--reload` | bool | false | Enable auto-reload |
-| `--config` | string | - | Config file path |
-
-**Example:**
-
-```bash
-# Default
-openllm serve
+# Start server (default port 8000)
+python -m openllm.src.server
 
 # Custom port
-openllm serve --port 9000
+python -m openllm.src.server --port 8001
 
-# With config
-openllm serve --config /path/to/models.yaml
+# With uvicorn (development)
+uvicorn openllm.src.server:app --host 0.0.0.0 --port 8000 --reload
 
-# Development mode
-openllm serve --reload
+# Production with gunicorn
+gunicorn openllm.src.server:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 ```
 
----
+## API Usage
 
-### status
-
-Show OpenLLM status.
+### Chat Completion
 
 ```bash
-openllm status
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai/gpt-4o",
+    "messages": [{"role": "user", "content": "Hello"}]
+  }'
 ```
 
-**Example Output:**
-
-```
-OpenLLM Status
-  Total models: 7
-  Enabled: 5
-
-Top models:
-  groq/llama-3.3-70b-versatile: 0.850
-  mistral/mistral-large-latest: 0.820
-```
-
----
-
-### models
-
-List available models.
+### With Agent Authentication
 
 ```bash
-openllm models [OPTIONS]
+curl http://localhost:8000/v1/chat/completions \
+  -H "X-API-Key: sk-your-key" \
+  -d '{"messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
-**Options:**
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `--list` | bool | List models (default) |
-
-**Example:**
+### With Prompt Enhancement
 
 ```bash
-openllm models
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai/gpt-4o",
+    "messages": [{"role": "user", "content": "统计所有 Python 文件的函数数量"}],
+    "code_thinking": true,
+    "terse": true,
+    "terse_intensity": "moderate"
+  }'
 ```
 
-**Example Output:**
-
-```
-Available models:
-  [✓] groq/llama-3.3-70b-versatile (openai)
-  [✓] mistral/mistral-large-latest (openai)
-  [✓] gemini/gemini-2.5-flash (openai)
-  [✓] cerebras/qwen-3-235b-a22b (openai)
-  [✗] ollama/llama3 (ollama)
-```
-
----
-
-### score
-
-Show model scores.
+### List Models
 
 ```bash
-openllm score [OPTIONS]
+curl http://localhost:8000/v1/models
 ```
 
-**Options:**
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `--refresh` | bool | Refresh scores |
-
-**Example:**
+### Health Check
 
 ```bash
-openllm score
+curl http://localhost:8000/v1/health
 ```
 
-**Example Output:**
-
-```
-Model scores:
-  groq/llama-3.3-70b-versatile: total=0.850 quality=0.800 speed=0.900
-  mistral/mistral-large-latest: total=0.820 quality=0.810 speed=0.850
-  gemini/gemini-2.5-flash: total=0.780 quality=0.750 speed=0.850
-```
-
----
-
-### config
-
-Show configuration.
+### Model Scores
 
 ```bash
-openllm config [OPTIONS]
+curl http://localhost:8000/v1/scores
 ```
 
-**Options:**
+## Agent Management
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `--show` | bool | Show config (default) |
-
-**Example:**
+### Register Agent
 
 ```bash
-openllm config
+curl http://localhost:8000/api/session/agents/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "my-agent",
+    "name": "My Agent",
+    "platform": "custom",
+    "default_model": "qwen3.6-plus"
+  }'
 ```
 
-**Example Output:**
-
-```
-Current configuration:
-
-Model: groq/llama-3.3-70b-versatile
-  Protocol: openai
-  Endpoint: https://api.groq.com/openai/v1
-  RPM: 30
-  TPM: 6000
-
-Model: mistral/mistral-large-latest
-  Protocol: openai
-  Endpoint: https://api.mistral.ai/v1
-  RPM: 30
-  TPM: 15000
-```
-
----
-
-### discover
-
-Discover available models from configured providers.
+### List Agents
 
 ```bash
-openllm discover
+curl http://localhost:8000/api/session/agents
 ```
 
-**Description:**
-
-This command queries all configured model providers to discover what models are available. Discovered models are automatically added to `models.yaml` with `enabled: false`, allowing you to review and enable them manually.
-
-**Example:**
+### Generate API Key
 
 ```bash
-openllm discover
+curl -X POST http://localhost:8000/api/session/agents/my-agent/generate-key
 ```
 
-**Example Output:**
-
-```
-Discovered 3 new models:
-  - gpt-4-turbo (openai)
-  - gpt-3.5-turbo (openai)
-  - llama3:8b (ollama)
-
-Models saved to /path/to/models.yaml (enabled: false)
-```
-
-**Supported Providers:**
-
-| Provider | Endpoint | Notes |
-|----------|----------|--------|
-| OpenAI-compatible | `/v1/models` | Lists all account models |
-| Ollama | `/api/tags` | Lists local models |
-| Anthropic | N/A | Returns current model only (API limited) |
-| REST | `/models` | Custom endpoint |
-
----
-
-### test
-
-Test configured models for availability and capabilities.
+### View Usage
 
 ```bash
-openllm test [OPTIONS]
+curl http://localhost:8000/api/session/agents/my-agent/usage
+curl http://localhost:8000/api/session/agents/usage/all
 ```
 
-**Options:**
+## Sandbox
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `--all` | bool | Test all models including disabled |
-
-**Example:**
+### Execute Code
 
 ```bash
-openllm test
+curl http://localhost:8000/api/sandbox/execute \
+  -H "Content-Type: application/json" \
+  -d '{"language": "python", "code": "print(2 + 2)"}'
 ```
 
-**Example Output:**
-
-```
-Testing enabled models...
-  ✅ groq/llama-3.3-70b-versatile (70b): available (120ms), context: 131072, capabilities: [coding, math]
-  ❌ mistral/mistral-large-latest: unavailable
-
-Results: 1/2 models available
-```
-
----
-
-### freeride
-
-FreeRide mode for token freedom - automatically discover and connect to free LLM APIs.
+### Batch Execution
 
 ```bash
-openllm freeride [OPTIONS]
+curl http://localhost:8000/api/sandbox/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "commands": [
+      {"language": "python", "code": "print(len(__import__(\"os\").listdir(\".\")))", "label": "count files"}
+    ]
+  }'
 ```
 
-**Options:**
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `--enable` | bool | Enable FreeRide mode |
-| `--disable` | bool | Disable FreeRide mode |
-| `--status` | bool | Show FreeRide status |
-| `--providers` | string | Comma-separated providers |
-
-**Example:**
+### Search Index
 
 ```bash
-# Enable with all providers
-openllm freeride --enable
-
-# Enable specific providers
-openllm freeride --enable --providers groq,cerebras
-
-# Show status
-openllm freeride --status
+curl "http://localhost:8000/api/sandbox/search?q=installation+guide"
 ```
 
-**Supported Providers:**
+## Session Events
 
-- Groq (llama-3.3-70b-versatile, qwen3-32b)
-- Cerebras (llama3.1-8b, qwen-3-235b-a22b)
-- OpenRouter (deepseek-r1:free, llama-3.3-70b:free)
-- Mistral (mistral-small, codestral)
-- Gemini (gemini-2.5-flash)
-- Ollama (llama3, mistral)
-
----
-
-### provider
-
-Add a custom provider and optionally discover its models.
+### Extract Events
 
 ```bash
-openllm provider --add --name <name> --endpoint <url> [OPTIONS]
+curl http://localhost:8000/api/session/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "读取了 main.py 并修复了 bug"}],
+    "session_id": "conv-123"
+  }'
 ```
 
-**Options:**
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `--add` | bool | Add a new provider |
-| `--name` | string | Provider name |
-| `--endpoint` | string | Provider API endpoint |
-| `--api-key` | string | API key |
-| `--protocol` | string | Protocol (openai/ollama/anthropic/rest) |
-| `--discover` | bool | Auto-discover models after adding |
-
-**Example:**
+### Search Events
 
 ```bash
-# Interactive mode (default)
-openllm provider
-
-# Add a new provider
-openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1
-
-# Add with API key
-openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1 --api-key sk-xxx
-
-# Add and discover models
-openllm provider --add --name myprovider --endpoint https://api.myprovider.com/v1 --discover
+curl "http://localhost:8000/api/session/events?q=file+error&session_id=conv-123"
 ```
 
----
+## Admin Panel
 
-## Python API
+Open in browser:
 
-### Run Server
-
-```python
-from openllm.src.server import run
-
-# Default
-run()
-
-# Custom
-run(host="127.0.0.1", port=9000, reload=False)
 ```
-
-### Programmatic Usage
-
-```python
-from openllm.src.registry import get_registry
-from openllm.src.dispatcher import get_dispatcher
-from openllm.src.models import ChatRequest, Message
-
-# Get dispatcher
-dispatcher = get_dispatcher()
-
-# Create request
-request = ChatRequest(
-    model="meta-model",
-    messages=[Message(role="user", content="Hello!")]
-)
-
-# Execute
-response = await dispatcher.dispatch(request)
-
-print(response.choices[0].message.content)
+http://localhost:8000/admin/
 ```
-
----
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `OPENLLM_HOST` | Server host |
-| `OPENLLM_PORT` | Server port |
-| `OPENLLM_CONFIG` | Config file path |
-| `GEMINI_API_KEY` | Google Gemini API key |
-| `GROQ_API_KEY` | Groq API key |
-| `MISTRAL_API_KEY` | Mistral API key |
-| `CEREBRAS_API_KEY` | Cerebras API key |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
