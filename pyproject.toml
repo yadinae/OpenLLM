@@ -1,0 +1,36 @@
+[project]
+name = "openllm"
+version = "0.1.0"
+description = "AI API Gateway — protocol translation (Anthropic↔OpenAI), smart routing, circuit breaker, RTK compression"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "龙天涯"}]
+
+dependencies = [
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.20",
+    "httpx>=0.20,<1",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+    "typer>=0.9",
+    "pyyaml>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yadinae/OpenLLM"
+Repository = "https://github.com/yadinae/OpenLLM"
+
+[project.scripts]
+openllm = "openllm.cli.__init__:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

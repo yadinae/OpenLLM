@@ -1,0 +1,62 @@
+# OpenLLM 配置文件
+# 支持 YAML 或 JSON 格式
+# 搜索优先级: ./openllm.yaml → ~/.openllm/openllm.yaml → ~/.openllm/config.json
+
+# Provider 配置
+providers:
+  openrouter:
+    endpoint: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    timeout: 30
+
+  groq:
+    endpoint: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
+    timeout: 30
+
+  deepseek:
+    endpoint: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_API_KEY
+    timeout: 30
+
+  nvidia:
+    endpoint: https://integrate.api.nvidia.com/v1
+    api_key_env: NVIDIA_API_KEY
+    timeout: 60
+
+  cerebras:
+    endpoint: https://api.cerebras.ai/v1
+    api_key_env: CEREBRAS_API_KEY
+    timeout: 30
+
+# Combo 路由配置
+combos:
+  auto:
+    strategy: fallback
+    members:
+      - model: auto
+        provider: openrouter
+        priority: 0
+      - model: auto
+        provider: groq
+        priority: 1
+      - model: auto
+        provider: deepseek
+        priority: 2
+
+  fast:
+    strategy: fallback
+    members:
+      - model: auto
+        provider: groq
+        priority: 0
+      - model: auto
+        provider: deepseek
+        priority: 1
+
+  free:
+    strategy: fallback
+    members:
+      - model: auto
+        provider: openrouter
+        priority: 0
