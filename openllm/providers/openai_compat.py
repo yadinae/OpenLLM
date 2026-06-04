@@ -153,7 +153,8 @@ class OpenAICompatProvider(Provider):
     def _parse_response(self, data: dict, model: str) -> ChatResponse:
         choice = data.get("choices", [{}])[0]
         message = choice.get("message", {})
-        content = message.get("content") or ""
+        # 一些 Provider（如 DeepSeek-v4-flash）将输出放在 reasoning_content 而非 content 中
+        content = message.get("content") or message.get("reasoning_content") or ""
         usage_raw = data.get("usage", {})
         usage = TokenUsage(
             prompt_tokens=usage_raw.get("prompt_tokens", 0),
@@ -171,7 +172,8 @@ class OpenAICompatProvider(Provider):
     def _parse_chunk(self, chunk: dict, model: str) -> ChatResponse:
         choice = chunk.get("choices", [{}])[0]
         delta = choice.get("delta", {})
-        content = delta.get("content") or ""
+        # 一些 Provider（如 DeepSeek-v4-flash）将输出放在 reasoning_content 而非 content 中
+        content = delta.get("content") or delta.get("reasoning_content") or ""
         finish = choice.get("finish_reason") or ""
         return ChatResponse(
             content=content,
