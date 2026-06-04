@@ -1,0 +1,56 @@
+# OpenLLM 配置
+providers:
+  deepseek:
+    endpoint: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_API_KEY
+    timeout: 30
+
+  nvidia:
+    endpoint: https://integrate.api.nvidia.com/v1
+    api_key_env: NVIDIA_API_KEY
+    timeout: 60
+
+  router:
+    endpoint: http://8.208.28.70:20128/v1
+    api_key_env: ROUTER_API_KEY
+    timeout: 30
+
+  opencode:
+    endpoint: https://opencode.ai/zen/go/v1
+    api_key_env: OPENCODE_API_KEY
+    timeout: 60
+
+# Combo 路由配置
+combos:
+  auto:
+    strategy: fallback
+    members:
+      - model: auto
+        provider: opencode
+        priority: 0
+      - model: auto
+        provider: deepseek
+        priority: 1
+      - model: auto
+        provider: router
+        priority: 2
+      - model: auto
+        provider: nvidia
+        priority: 3
+
+  fast:
+    strategy: fallback
+    members:
+      - model: auto
+        provider: opencode
+        priority: 0
+      - model: auto
+        provider: deepseek
+        priority: 1
+
+  free:
+    strategy: fallback
+    members:
+      - model: auto
+        provider: opencode
+        priority: 0

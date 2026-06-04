@@ -1,0 +1,38 @@
+# OpenLLM Docker Compose
+# 使用方式: docker compose up -d
+#
+# 先复制 .env.example 为 .env 并填入 API key:
+#   cp .env.example .env
+#   vi .env
+#   docker compose up -d
+
+services:
+  openllm:
+    build: .
+    container_name: openllm-gateway
+    restart: unless-stopped
+    ports:
+      - "11343:11343"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=11343
+    env_file:
+      - .env
+    volumes:
+      # 持久化冷却数据（熔断器状态跨重启保持）
+      - openllm_data:/root/.openllm
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11343/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+volumes:
+  openllm_data:

@@ -37,3 +37,9 @@ htmlcov/
 
 # Logs
 *.log
+
+# Temporary review artifacts
+PERFORMANCE_REVIEW_PHASE2.md
+WHITEBOARD.md
+phase3_review_report.md
+docs/performance_review_round2.md

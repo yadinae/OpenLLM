@@ -103,11 +103,12 @@ def create_app(api_key: str | None = None) -> FastAPI:
                 )
         return await call_next(request)
 
-    from .routes import chat, models, health, messages
+    from .routes import chat, models, health, messages, rankings
     app.include_router(health.router)
     app.include_router(models.router)
     app.include_router(chat.router)
     app.include_router(messages.router)
+    app.include_router(rankings.router)
 
     return app
 
