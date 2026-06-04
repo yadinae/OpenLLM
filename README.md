@@ -343,6 +343,13 @@ uv run ruff format openllm/ --check
 
 ---
 
+## 文档
+
+| 文档 | 说明 |
+|:-----|:------|
+| [Provider & Combo 用户指南](docs/provider-combo-user-guide.md) | 配置 Provider、Combo 路由、客户端调用、故障排查（中文） |
+| [Provider & Combo 深度分析](docs/provider-combo-system.md) | 源码级架构、模块依赖、容错实现（英文） |
+
 ## 许可
 
 MIT License — 详见 [LICENSE](LICENSE)
