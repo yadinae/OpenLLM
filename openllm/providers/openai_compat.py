@@ -143,11 +143,12 @@ class OpenAICompatProvider(Provider):
     
     def _build_payload(self, request: ChatRequest) -> dict:
         return {
-            "model": self._extract_model_name(request.model),
+            "model": request.model,
             "messages": [{"role": m.role, "content": m.content} for m in request.messages],
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
             "top_p": request.top_p,
+            "stream": request.stream,
         }
     
     def _parse_response(self, data: dict, model: str) -> ChatResponse:
