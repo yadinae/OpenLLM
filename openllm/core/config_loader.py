@@ -104,6 +104,7 @@ def load_providers_from_config(
             extra_headers=cfg.get("headers", {}),
             timeout=cfg.get("timeout", 30.0),
             max_retries=cfg.get("max_retries", 2),
+            max_concurrent=cfg.get("max_concurrent", 8),
         ))
     
     return providers
@@ -154,3 +155,8 @@ def load_combos_from_config(config: dict[str, Any]) -> list[ComboConfig]:
         ))
     
     return combos
+
+
+def load_models_from_config(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """加载用户配置中的模型元数据覆盖"""
+    return config.get("models", {})

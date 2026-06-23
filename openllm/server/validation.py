@@ -35,29 +35,29 @@ def validate_request_body(request: Request) -> Response | None:
     if path in ("/health", "/docs", "/openapi.json", "/"):
         return None
 
-    # 拒绝 chunked transfer encoding（绕过 Content-Length 限制）
-    transfer_encoding = request.headers.get("transfer-encoding", "").lower()
-    if "chunked" in transfer_encoding:
-        return JSONResponse(
-            status_code=411,
-            content={
-                "error": "chunked_not_allowed",
-                "message": "Transfer-Encoding: chunked is not allowed. Set Content-Length instead.",
-                "code": 411,
-            },
-        )
-
     # Content-Length 检查
     content_length = request.headers.get("content-length")
-    if content_length and int(content_length) > MAX_REQUEST_BODY:
-        return JSONResponse(
-            status_code=413,
-            content={
-                "error": "request_too_large",
-                "message": f"Request body exceeds {MAX_REQUEST_BODY // 1024 // 1024}MB limit",
-                "code": 413,
-            },
-        )
+    if content_length:
+        try:
+            cl = int(content_length)
+        except (ValueError, TypeError):
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "invalid_content_length",
+                    "message": "Content-Length must be a valid integer",
+                    "code": 400,
+                },
+            )
+            if cl > MAX_REQUEST_BODY:
+                return JSONResponse(
+                    status_code=413,
+                    content={
+                        "error": "request_too_large",
+                        "message": f"Request body exceeds {MAX_REQUEST_BODY // 1024 // 1024}MB limit",
+                        "code": 413,
+                    },
+                )
 
     # 不对非 JSON 请求做深入校验
     content_type = request.headers.get("content-type", "")

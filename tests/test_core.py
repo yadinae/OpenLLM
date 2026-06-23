@@ -125,58 +125,66 @@ class TestState:
         assert "EMPTY" in result
         assert "# comment" not in result
 
-    def test_atomic_write_read(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_atomic_write_read(self, tmp_path):
         data = {"key": "value", "num": 42}
         test_file = tmp_path / "test.json"
-        write_json_atomic(test_file, data)
+        await write_json_atomic(test_file, data)
         assert test_file.exists()
-        result = read_json(test_file)
+        result = await read_json(test_file)
         assert result == data
 
-    def test_read_json_default(self, tmp_path):
-        result = read_json(tmp_path / "nonexistent.json", {"default": True})
+    @pytest.mark.asyncio
+    async def test_read_json_default(self, tmp_path):
+        result = await read_json(tmp_path / "nonexistent.json", {"default": True})
         assert result == {"default": True}
 
 
 class TestCooldown:
     """冷却管理测试"""
 
-    def test_cooldown_default_not_cooled(self):
+    @pytest.mark.asyncio
+    async def test_cooldown_default_not_cooled(self):
         cd = CooldownManager()
-        assert not cd.is_cooled("test-key")
+        assert not await cd.is_cooled("test-key")
 
-    def test_cooldown_sets_and_expires(self):
+    @pytest.mark.asyncio
+    async def test_cooldown_sets_and_expires(self):
         cd = CooldownManager()
-        cd.set_cooldown("test-key", 0.01)  # 10ms
-        assert cd.is_cooled("test-key")
+        await cd.set_cooldown("test-key", 0.1)  # 100ms
+        assert await cd.is_cooled("test-key")
         import time
-        time.sleep(0.02)
-        assert not cd.is_cooled("test-key")
+        time.sleep(0.15)
+        assert not await cd.is_cooled("test-key")
 
-    def test_cooldown_clear_specific(self):
+    @pytest.mark.asyncio
+    async def test_cooldown_clear_specific(self):
         cd = CooldownManager()
-        cd.set_cooldown("key1", 60)
-        cd.set_cooldown("key2", 60)
-        cd.clear("key1")
-        assert not cd.is_cooled("key1")
-        assert cd.is_cooled("key2")
+        await cd.set_cooldown("key1", 60)
+        await cd.set_cooldown("key2", 60)
+        await cd.clear("key1")
+        assert not await cd.is_cooled("key1")
+        assert await cd.is_cooled("key2")
 
-    def test_cooldown_clear_all(self):
+    @pytest.mark.asyncio
+    async def test_cooldown_clear_all(self):
         cd = CooldownManager()
-        cd.set_cooldown("key1", 60)
-        cd.set_cooldown("key2", 60)
-        cd.clear()
-        assert not cd.is_cooled("key1")
-        assert not cd.is_cooled("key2")
+        await cd.set_cooldown("key1", 60)
+        await cd.set_cooldown("key2", 60)
+        await cd.clear()
+        assert not await cd.is_cooled("key1")
+        assert not await cd.is_cooled("key2")
 
-    def test_get_remaining_zero_for_unknown(self):
+    @pytest.mark.asyncio
+    async def test_get_remaining_zero_for_unknown(self):
         cd = CooldownManager()
-        assert cd.get_remaining("nonexistent") == 0.0
+        assert await cd.get_remaining("nonexistent") == 0.0
 
-    def test_get_remaining_positive(self):
+    @pytest.mark.asyncio
+    async def test_get_remaining_positive(self):
         cd = CooldownManager()
-        cd.set_cooldown("test", 60)
-        remaining = cd.get_remaining("test")
+        await cd.set_cooldown("test", 60)
+        remaining = await cd.get_remaining("test")
         assert 0 < remaining <= 60
 
 
@@ -228,7 +236,7 @@ class TestCombo:
     async def test_combo_fallback_single_member(self):
         reg = Registry()
         cd = CooldownManager()
-        cd.clear()
+        await cd.clear()
         engine = ComboEngine(reg, cd)
 
         mock = _MockProvider()
@@ -253,7 +261,7 @@ class TestCombo:
 
         mock = _MockProvider()
         reg.register("mock", mock)
-        cd.set_cooldown("provider:mock", 60)
+        await cd.set_cooldown("provider:mock", 60)
 
         combo = ComboConfig(
             name="test",
@@ -269,7 +277,7 @@ class TestCombo:
     async def test_combo_round_robin(self):
         reg = Registry()
         cd = CooldownManager()
-        cd.clear()
+        await cd.clear()
         engine = ComboEngine(reg, cd)
 
         mock = _MockProvider()

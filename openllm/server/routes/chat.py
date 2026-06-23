@@ -67,6 +67,7 @@ async def chat_completions(payload: ChatPayload):
             )
         try:
             response = await combo_engine.execute(combo, internal_req)
+            circuit_breaker.record_success(response.actual_provider or "")
             return _format_response(response)
         except Exception as e:
             raise HTTPException(status_code=503, detail=str(e))
@@ -88,8 +89,8 @@ async def chat_completions(payload: ChatPayload):
 
     # 3. 检查冷却
     cool_key = f"provider:{provider_name}"
-    if cooldown.is_cooled(cool_key):
-        remaining = cooldown.get_remaining(cool_key)
+    if await cooldown.is_cooled(cool_key):
+        remaining = await cooldown.get_remaining(cool_key)
         raise HTTPException(
             status_code=429,
             detail=f"Provider {provider_name} is cooling down ({remaining:.0f}s)"
@@ -105,7 +106,7 @@ async def chat_completions(payload: ChatPayload):
 
     internal_req.model = model_name or model
 
-    # 4. 流式 / 非流式
+    # 5. 流式 / 非流式
     if is_stream:
         return StreamingResponse(
             _stream_provider(provider_name, provider, internal_req),
@@ -117,7 +118,7 @@ async def chat_completions(payload: ChatPayload):
         circuit_breaker.record_success(provider_name)
         return _format_response(response)
     except Exception as e:
-        _record_failure(provider_name, e)
+        await _record_failure(provider_name, e)
         logger.error("Provider %s failed: %s", provider_name, e)
         raise HTTPException(status_code=502, detail="Upstream provider error")
 
@@ -139,28 +140,28 @@ def _find_model_globally(model: str) -> tuple[str, str] | None:
         # 完全匹配
         if m_id == model:
             return m_provider, m_id
-    # 未找到缓存的模型，遍历 provider 尝试直接调用
+    # 未找到缓存的模型，遍历 provider 查找与模型名同名的 provider
     for pname in registry.list_providers():
         if pname == model:
-            return pname, "auto"
+            return pname, model
     return None
 
 
-def _record_failure(provider_name: str, exc: Exception) -> None:
+async def _record_failure(provider_name: str, exc: Exception) -> None:
     """记录失败并自动设置冷却（P1-2 修复）"""
     from openllm.core.errors import RateLimitError, AuthError
     
     circuit_breaker.record_failure(provider_name)
 
     if isinstance(exc, RateLimitError):
-        cooldown.set_cooldown(f"provider:{provider_name}", 120, "rate_limit")
+        await cooldown.set_cooldown(f"provider:{provider_name}", 120, "rate_limit")
     elif isinstance(exc, AuthError):
-        cooldown.set_cooldown(f"provider:{provider_name}", 300, "auth")
+        await cooldown.set_cooldown(f"provider:{provider_name}", 300, "auth")
     elif isinstance(exc, ProviderError):
         duration = _cooldown_for_kind(exc.kind)
-        cooldown.set_cooldown(f"provider:{provider_name}", duration, exc.kind.value)
+        await cooldown.set_cooldown(f"provider:{provider_name}", duration, exc.kind.value)
     else:
-        cooldown.set_cooldown(f"provider:{provider_name}", 60, "unknown")
+        await cooldown.set_cooldown(f"provider:{provider_name}", 60, "unknown")
 
 
 def _cooldown_for_kind(kind) -> float:
@@ -181,66 +182,18 @@ def _find_combo(model: str):
 
 
 async def _stream_combo(combo_name: str, req: InternalRequest) -> AsyncGenerator[str, None]:
-    """真流式 Combo — 首 chunk 到达前可切换 Provider（P1-1 修复）
-
-    逐个尝试 combo 成员：
-    - 首 chunk 到达 → 转发该 Provider 的完整流
-    - 失败 → 自动切下一成员
-    """
+    """真流式 Combo — 委托 combo_engine.execute_stream 处理"""
     combo = get_combos().get(combo_name)
     if not combo:
         yield f"data: {json.dumps({'error': 'combo not found'})}\n\n"
         return
 
-    sorted_members = sorted(combo.members, key=lambda m: m.priority)
-    failures = []
-    stream_started = False
-
-    for member in sorted_members:
-        cool_key = f"provider:{member.provider}"
-        if cooldown.is_cooled(cool_key):
-            failures.append(f"{member.provider}: cooled")
-            continue
-
-        if circuit_breaker.is_open(member.provider):
-            failures.append(f"{member.provider}: circuit-broken")
-            continue
-
-        provider = registry.get(member.provider)
-        if not provider:
-            failures.append(f"{member.provider}: not registered")
-            continue
-
-        provider_req = InternalRequest(
-            model=member.model,
-            messages=req.messages,
-            stream=True,
-            temperature=req.temperature,
-            max_tokens=req.max_tokens,
-        )
-
-        try:
-            # 尝试启动流 — 等首 chunk
-            stream = provider.chat_completion_stream(provider_req)
-            first_chunk = await stream.__anext__()
-            # 首 chunk 到达 → 锁定此 Provider，转发首块 + 后续
-            yield _sse_chunk(first_chunk)
-            async for chunk in stream:
-                yield _sse_chunk(chunk)
-            yield "data: [DONE]\n\n"
-            circuit_breaker.record_success(member.provider)
-            stream_started = True
-            break
-        except StopAsyncIteration:
-            failures.append(f"{member.provider}: empty stream")
-        except Exception as e:
-            logger.warning("Combo member %s failed: %s", member.provider, e)
-            _record_failure(member.provider, e)
-            failures.append(f"{member.provider}: {e}")
-
-    if not stream_started:
-        error_msg = "; ".join(failures)
-        yield f"data: {json.dumps({'error': f'All combo members failed: {error_msg}'})}\n\n"
+    try:
+        async for chunk in combo_engine.execute_stream(combo, req):
+            yield _sse_chunk(chunk)
+        yield "data: [DONE]\n\n"
+    except Exception as e:
+        yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
 
 def _sse_chunk(chunk: ChatResponse) -> str:
@@ -262,7 +215,7 @@ async def _stream_provider(provider_name: str, provider, req: InternalRequest) -
         yield "data: [DONE]\n\n"
         circuit_breaker.record_success(provider_name)
     except Exception as e:
-        _record_failure(provider_name, e)
+        await _record_failure(provider_name, e)
         logger.error("Stream error from %s: %s", provider_name, e)
         yield f"data: {json.dumps({'error': 'stream_error', 'message': 'An internal error occurred'})}\n\n"
 

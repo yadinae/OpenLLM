@@ -85,7 +85,7 @@ async def messages(payload: AnthropicRequest):
         raise HTTPException(status_code=404, detail=f"No provider for '{payload.model}'")
 
     # 3. 冷却检查
-    if cooldown.is_cooled(f"provider:{provider_name}"):
+    if await cooldown.is_cooled(f"provider:{provider_name}"):
         raise HTTPException(status_code=429, detail=f"Provider {provider_name} cooling")
 
     internal_req = InternalRequest(
@@ -202,5 +202,5 @@ def _find_model_globally(model: str) -> tuple[str, str] | None:
             return m.get("provider", ""), model
     for pname in registry.list_providers():
         if pname == model:
-            return pname, "auto"
+            return pname, model
     return None

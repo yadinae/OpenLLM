@@ -19,14 +19,20 @@ class CooldownManager:
     冷却中的 Provider 在路由时自动跳过。
     """
 
-    def __init__(self):
+    def __init__(self, lazy_load: bool = True):
         self._cooldowns: dict[str, dict] = {}
-        self._dirty = False
         self._lock = asyncio.Lock()
-        self._load()
+        self._loaded = False
+        if not lazy_load:
+            # 仅用于同步测试，生产环境应使用 await init()
+            pass
     
-    def _load(self) -> None:
-        data = read_json(get_data_dir() / "cooldown.json", {})
+    async def init(self) -> None:
+        """异步初始化，从磁盘加载冷却数据"""
+        if self._loaded:
+            return
+        self._loaded = True
+        data = await read_json(get_data_dir() / "cooldown.json", {})
         self._cooldowns = data.get("cooldowns", {})
         # 清理过期条目
         now = time.time()
@@ -34,15 +40,15 @@ class CooldownManager:
         for k in expired:
             del self._cooldowns[k]
         if expired:
-            self._save()
+            await self._save()
     
-    def _save(self) -> None:
-        write_json_atomic(
+    async def _save(self) -> None:
+        await write_json_atomic(
             get_data_dir() / "cooldown.json",
             {"cooldowns": self._cooldowns}
         )
     
-    def set_cooldown(self, key: str, duration: float = 60.0, reason: str = "") -> None:
+    async def set_cooldown(self, key: str, duration: float = 60.0, reason: str = "") -> None:
         """设置冷却
         
         Args:
@@ -50,38 +56,50 @@ class CooldownManager:
             duration: 冷却时长（秒）
             reason: 冷却原因
         """
-        until = time.time() + duration
-        self._cooldowns[key] = {
-            "until": until,
-            "reason": reason or "rate_limit",
-            "set_at": time.time(),
-        }
-        self._save()
+        if not self._loaded:
+            await self.init()
+        async with self._lock:
+            until = time.time() + duration
+            self._cooldowns[key] = {
+                "until": until,
+                "reason": reason or "rate_limit",
+                "set_at": time.time(),
+            }
+            await self._save()
         logger.info("Cooldown set for %s: %.0fs (%s)", key, duration, reason)
     
-    def is_cooled(self, key: str) -> bool:
+    async def is_cooled(self, key: str) -> bool:
         """检查是否在冷却中"""
-        entry = self._cooldowns.get(key)
-        if entry is None:
-            return False
-        if entry["until"] <= time.time():
-            del self._cooldowns[key]
-            self._dirty = True
-            return False
-        return True
+        if not self._loaded:
+            await self.init()
+        async with self._lock:
+            entry = self._cooldowns.get(key)
+            if entry is None:
+                return False
+            if entry["until"] <= time.time():
+                del self._cooldowns[key]
+                await self._save()
+                return False
+            return True
     
-    def get_remaining(self, key: str) -> float:
+    async def get_remaining(self, key: str) -> float:
         """获取剩余冷却时间（秒）"""
-        entry = self._cooldowns.get(key)
-        if entry is None:
-            return 0.0
-        remaining = entry["until"] - time.time()
-        return max(0.0, remaining)
+        if not self._loaded:
+            await self.init()
+        async with self._lock:
+            entry = self._cooldowns.get(key)
+            if entry is None:
+                return 0.0
+            remaining = entry["until"] - time.time()
+            return max(0.0, remaining)
     
-    def clear(self, key: str | None = None) -> None:
+    async def clear(self, key: str | None = None) -> None:
         """清除冷却"""
-        if key:
-            self._cooldowns.pop(key, None)
-        else:
-            self._cooldowns.clear()
-        self._save()
+        if not self._loaded:
+            await self.init()
+        async with self._lock:
+            if key:
+                self._cooldowns.pop(key, None)
+            else:
+                self._cooldowns.clear()
+            await self._save()

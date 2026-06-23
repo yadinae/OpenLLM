@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import AsyncIterator
@@ -28,6 +29,7 @@ class OpenAICompatProvider(Provider):
     def __init__(self, config: ProviderConfig):
         self.config = config
         self._client: httpx.AsyncClient | None = None
+        self._semaphore = asyncio.Semaphore(config.max_concurrent)
     
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -73,7 +75,12 @@ class OpenAICompatProvider(Provider):
                 models.append({
                     "id": m.get("id", ""),
                     "name": m.get("id", ""),
-                    "is_free": False,  # OpenAI 兼容 API 不提供免费标记
+                    "is_free": False,
+                    "context_length": m.get("context_length"),
+                    "capabilities": m.get("capabilities"),
+                    "supports_reasoning": m.get("supports_reasoning", False),
+                    "supports_vision": m.get("supports_vision", False),
+                    "max_output_tokens": m.get("max_output_tokens"),
                 })
             return models
         except httpx.HTTPStatusError as e:
@@ -81,56 +88,58 @@ class OpenAICompatProvider(Provider):
             return []
     
     async def chat_completion(self, request: ChatRequest) -> ChatResponse:
-        client = await self._get_client()
-        payload = self._build_payload(request)
+        async with self._semaphore:
+            client = await self._get_client()
+            payload = self._build_payload(request)
 
-        async def _do_post() -> dict:
-            resp = await client.post("/v1/chat/completions", json=payload)
-            resp.raise_for_status()
-            return resp.json()
+            async def _do_post() -> dict:
+                resp = await client.post("/v1/chat/completions", json=payload)
+                resp.raise_for_status()
+                return resp.json()
 
-        try:
-            data = await retry_with_backoff(_do_post)
-            return self._parse_response(data, request.model)
-        except httpx.HTTPStatusError as e:
-            raise self._classify_http_error(e, self.config.name)
-        except httpx.TimeoutException:
-            raise ProviderError(
-                f"Timeout from {self.config.name}",
-                self.config.name, ErrorKind.TIMEOUT, 504
-            )
-    
+            try:
+                data = await retry_with_backoff(_do_post)
+                return self._parse_response(data, request.model)
+            except httpx.HTTPStatusError as e:
+                raise self._classify_http_error(e, self.config.name)
+            except httpx.TimeoutException:
+                raise ProviderError(
+                    f"Timeout from {self.config.name}",
+                    self.config.name, ErrorKind.TIMEOUT, 504
+                )
+
     async def chat_completion_stream(
         self, request: ChatRequest
     ) -> AsyncIterator[ChatResponse]:
-        client = await self._get_client()
-        payload = self._build_payload(request)
-        payload["stream"] = True
-        
-        try:
-            async with client.stream("POST", "/v1/chat/completions", json=payload) as resp:
-                if resp.status_code != 200:
-                    body = await resp.aread()
-                    raise ProviderError(
-                        f"{self.config.name}: {resp.status_code} {body[:200]}",
-                        self.config.name, ErrorKind.SERVER_ERROR, resp.status_code
-                    )
-                async for line in resp.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    chunk_str = line[6:].strip()
-                    if not chunk_str or chunk_str == "[DONE]":
-                        continue
-                    try:
-                        chunk = json.loads(chunk_str)
-                    except json.JSONDecodeError:
-                        continue
-                    yield self._parse_chunk(chunk, request.model)
-        except httpx.TimeoutException:
-            raise ProviderError(
-                f"Stream timeout from {self.config.name}",
-                self.config.name, ErrorKind.TIMEOUT, 504
-            )
+        async with self._semaphore:
+            client = await self._get_client()
+            payload = self._build_payload(request)
+            payload["stream"] = True
+
+            try:
+                async with client.stream("POST", "/v1/chat/completions", json=payload) as resp:
+                    if resp.status_code != 200:
+                        body = await resp.aread()
+                        raise ProviderError(
+                            f"{self.config.name}: {resp.status_code} {body[:200]}",
+                            self.config.name, ErrorKind.SERVER_ERROR, resp.status_code
+                        )
+                    async for line in resp.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        chunk_str = line[6:].strip()
+                        if not chunk_str or chunk_str == "[DONE]":
+                            continue
+                        try:
+                            chunk = json.loads(chunk_str)
+                        except json.JSONDecodeError:
+                            continue
+                        yield self._parse_chunk(chunk, request.model)
+            except httpx.TimeoutException:
+                raise ProviderError(
+                    f"Stream timeout from {self.config.name}",
+                    self.config.name, ErrorKind.TIMEOUT, 504
+                )
     
     def classify_error(self, exc: Exception) -> ErrorKind:
         if isinstance(exc, RateLimitError):

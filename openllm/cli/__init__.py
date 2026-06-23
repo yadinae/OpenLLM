@@ -79,12 +79,12 @@ def list_providers(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="显示详细信息"),
 ):
     """列出已注册的 Provider"""
-    from openllm.server.app import create_app
     import asyncio
 
     async def _list():
-        create_app()
-        from openllm.server.app import registry
+        from openllm.server.app import _load_providers, registry
+        _load_providers()
+        await registry.discover_models()
         providers = registry.list_providers()
         if not providers:
             typer.echo("⚠️  No providers registered. Set API keys in .env")
@@ -99,22 +99,21 @@ def list_providers(
             else:
                 typer.echo(f"  ✅ {name}")
 
-    # 使用 lifespan 上下文
     asyncio.run(_list())
 
 
 @app.command()
 def doctor():
     """诊断检查 — 验证配置和 Provider 连通性"""
-    from openllm.server.app import create_app
     import asyncio
 
     async def _doctor():
         typer.echo("🔍 OpenLLM Doctor")
         typer.echo("═" * 40)
 
-        _ = create_app()
-        from openllm.server.app import registry
+        from openllm.server.app import _load_providers, registry
+        _load_providers()
+        await registry.discover_models()
 
         providers = registry.list_providers()
         if not providers:

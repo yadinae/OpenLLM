@@ -58,14 +58,18 @@ class Registry:
                     "provider": provider,
                     "name": m.get("name", m.get("id", "")),
                     "is_free": m.get("is_free", False),
+                    "context_length": m.get("context_length", 4096),
+                    "capabilities": m.get("capabilities", ["text"]),
+                    "supports_reasoning": m.get("supports_reasoning", False),
+                    "supports_vision": m.get("supports_vision", False),
                 })
         return flat
 
-    def save_snapshot(self) -> None:
+    async def save_snapshot(self) -> None:
         """保存注册表快照到磁盘"""
         data_dir = get_data_dir()
         snapshot = {
             "providers": list(self._providers.keys()),
             "models_count": len(self.get_cached_models()),
         }
-        write_json_atomic(data_dir / "registry.json", snapshot)
+        await write_json_atomic(data_dir / "registry.json", snapshot)

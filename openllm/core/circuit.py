@@ -120,6 +120,18 @@ class CircuitBreaker:
             return False  # 允许试探请求
         return True
 
+    def get_state(self, name: str) -> dict:
+        """获取 provider 的熔断器完整状态"""
+        state, until = self._states.get(name, ("CLOSED", 0))
+        if name in self._states:
+            self._touch(name)
+        return {
+            "state": state,
+            "failures": self._failures.get(name, 0),
+            "remaining": self.get_remaining(name),
+            "half_open_successes": self._half_open_successes.get(name, 0),
+        }
+
     def get_remaining(self, name: str) -> float:
         """获取熔断剩余时间（秒）"""
         state, until = self._states.get(name, ("CLOSED", 0))

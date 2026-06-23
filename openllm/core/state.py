@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import tempfile
@@ -9,32 +10,36 @@ from pathlib import Path
 from typing import Any
 
 
-def read_json(path: Path | str, default: Any = None) -> Any:
+async def read_json(path: Path | str, default: Any = None) -> Any:
     """读取 JSON 文件，失败返回 default"""
-    try:
-        with open(path) as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return default
-
-
-def write_json_atomic(path: Path | str, data: Any) -> None:
-    """原子写入 JSON 文件（tmp + rename），防止写中断导致文件损坏"""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(suffix=".tmp", dir=path.parent)
-    try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, path)
-    except Exception:
+    def _read():
         try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+            with open(path) as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return default
+    return await asyncio.to_thread(_read)
+
+
+async def write_json_atomic(path: Path | str, data: Any) -> None:
+    """原子写入 JSON 文件（tmp + rename），防止写中断导致文件损坏"""
+    def _write():
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(suffix=".tmp", dir=p.parent)
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, p)
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+    await asyncio.to_thread(_write)
 
 
 def get_data_dir() -> Path:

@@ -113,6 +113,7 @@ class ProviderConfig:
     extra_headers: dict[str, str] = field(default_factory=dict)
     timeout: float = 30.0
     max_retries: int = 2
+    max_concurrent: int = 8
 
 
 @dataclass

@@ -13,19 +13,23 @@ from openllm.core.cooldown import CooldownManager
 from openllm.core.combo import ComboEngine
 from openllm.core.circuit import CircuitBreaker
 from openllm.core.state import load_env_file, get_data_dir
-from openllm.core.types import ProviderConfig
-from openllm.core.config_loader import load_config, load_providers_from_config, load_combos_from_config
+from openllm.core.types import ProviderConfig, ComboConfig, ErrorKind
+from openllm.core.config_loader import load_config, load_providers_from_config, load_combos_from_config, load_models_from_config
 from openllm.providers.openai_compat import OpenAICompatProvider
 from openllm.server.validation import validate_request_body
+from openllm.core.health import HealthScoreTracker
+from openllm.core.model_metadata import ModelMetadataRegistry
 
 logger = logging.getLogger(__name__)
 
 # 全局单例
 registry = Registry()
 cooldown = CooldownManager()
-combo_engine = ComboEngine(registry, cooldown)
+health_tracker = HealthScoreTracker()
+metadata_registry = ModelMetadataRegistry()
+combo_engine = ComboEngine(registry, cooldown, health_tracker=health_tracker)
 circuit_breaker = CircuitBreaker()
-_loaded_combos: dict[str, object] = {}  # 供路由模块读取
+_loaded_combos: dict[str, ComboConfig] = {}  # 供路由模块读取
 _api_key: str | None = None  # API 认证密钥
 
 
@@ -46,10 +50,22 @@ def create_app(api_key: str | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        await cooldown.init()
         _load_providers()
         await registry.discover_models()
-        registry.save_snapshot()
-        logger.info("OpenLLM started with %d provider(s)", len(registry.list_providers()))
+        await registry.save_snapshot()
+
+        # 加载模型元数据
+        config = load_config()
+        models_config = load_models_from_config(config)
+        for pname in registry.list_providers():
+            cached = registry.get_cached_models()
+            provider_models = [m for m in cached if m["provider"] == pname]
+            metadata_registry.update_from_api(pname, provider_models)
+        metadata_registry.update_from_config(models_config)
+
+        logger.info("OpenLLM started with %d provider(s), %d model(s) with metadata",
+                    len(registry.list_providers()), len(metadata_registry.list_all()))
 
         # 后台健康检查任务
         health_task = asyncio.create_task(_health_check_loop())
@@ -172,7 +188,7 @@ def _load_providers() -> None:
     }
 
 
-def get_combos() -> dict[str, object]:
+def get_combos() -> dict[str, ComboConfig]:
     """获取已加载的 Combo 配置（供路由模块使用）"""
     return _loaded_combos
 
@@ -197,12 +213,15 @@ async def _health_check_loop() -> None:
                 models = await provider.list_models()
                 if models is not None:
                     circuit_breaker.record_success(name)
+                    health_tracker.record_success(name, 0)
                     healthy += 1
                 else:
                     circuit_breaker.record_failure(name)
+                    health_tracker.record_failure(name, ErrorKind.SERVER_ERROR)
             except Exception as e:
                 logger.warning("Health check failed for %s: %s", name, e)
                 tripped = circuit_breaker.record_failure(name)
+                health_tracker.record_failure(name, ErrorKind.SERVER_ERROR)
                 if tripped:
                     logger.warning("Circuit breaker opened for %s", name)
 
