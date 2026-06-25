@@ -108,8 +108,8 @@ def create_app(api_key: str | None = None) -> FastAPI:
             return validation_result
 
         if _api_key:
-            # /health 和 /docs 不要求认证
-            if request.url.path in ("/health", "/docs", "/openapi.json"):
+            # /health, /docs, /dashboard, /api/* 不要求认证
+            if request.url.path in ("/health", "/docs", "/openapi.json", "/", "/api/status", "/api/combos"):
                 return await call_next(request)
             auth = request.headers.get("Authorization", "")
             if not auth.startswith("Bearer ") or auth[7:] != _api_key:
@@ -119,7 +119,8 @@ def create_app(api_key: str | None = None) -> FastAPI:
                 )
         return await call_next(request)
 
-    from .routes import chat, models, health, messages, rankings
+    from .routes import chat, models, health, messages, rankings, dashboard
+    app.include_router(dashboard.router)
     app.include_router(health.router)
     app.include_router(models.router)
     app.include_router(chat.router)
