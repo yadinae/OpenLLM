@@ -1,9 +1,9 @@
 # Hugging Face Spaces Dockerfile
-# 自包含部署 — 所有文件从 GitHub 拉取，无需本地 COPY
+# COPY 源码方式 — 将项目源码直接放入 HF Space 仓库构建
 #
 # 使用方式:
 #   1. 在 hf.co 创建新 Space, 选择 Docker SDK
-#   2. 将此文件作为 Space 的 Dockerfile
+#   2. 将 openllm/ 目录、pyproject.toml 和此 Dockerfile 放入 Space 仓库
 #   3. 在 Settings → Secrets 中添加 API Keys
 #   4. 如需自定义配置, 在 Settings → Variables 中设置 OPENLLM_CONFIG (YAML 字符串)
 #
@@ -11,16 +11,19 @@
 #   OPENLLM_CONFIG  — YAML/JSON 配置字符串 (可选, 不设则用内置回退模式)
 #   ROUTER_API_KEY  — 网关认证密钥 (可选)
 #   DEEPSEEK_API_KEY, GROQ_API_KEY, OPENROUTER_API_KEY 等 — Provider API Keys
+#   PORT            — 监听端口 (默认 7860, HF Spaces 要求)
 
 FROM python:3.11-slim-bookworm AS builder
 
-# 构建阶段: 从 GitHub 安装 OpenLLM
-RUN apt-get update && apt-get install -y --no-install-recommends git && \
-    rm -rf /var/lib/apt/lists/*
+WORKDIR /build
 
-RUN pip install --no-cache-dir \
-    git+https://github.com/yadinae/OpenLLM.git
+# 复制项目源码
+COPY pyproject.toml .
+COPY openllm/ openllm/
 
+# 构建 + 安装
+RUN pip install --no-cache-dir hatchling && \
+    pip install --no-cache-dir .
 
 # ── 运行镜像 ──────────────────────────────
 FROM python:3.11-slim-bookworm
@@ -41,12 +44,9 @@ COPY --from=builder --chown=user \
     /usr/local/bin/openllm \
     /usr/local/bin/openllm
 
-# 健康检查依赖
-RUN echo "Health check via /health endpoint"
-
 EXPOSE 7860
 
 ENV HOST=0.0.0.0
 ENV PORT=7860
 
-CMD ["openllm", "serve", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["openllm", "serve"]

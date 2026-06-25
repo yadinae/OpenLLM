@@ -18,9 +18,41 @@ pinned: false
 
 在 [huggingface.co/new-space](https://huggingface.co/new-space) 创建新 Space, 选择 **Docker** SDK.
 
-### 2. 上传 Dockerfile
+### 2. 上传项目文件
 
-将此仓库的 `Dockerfile.hf` 作为 Space 的 Dockerfile (重命名为 `Dockerfile`).
+将以下文件放入 Space 仓库:
+
+```
+Space 仓库结构:
+├── Dockerfile          ← Dockerfile.hf 的内容
+├── README.md           ← 本文件
+├── pyproject.toml      ← 项目构建配置
+└── openllm/            ← 项目源码目录
+    ├── __init__.py
+    ├── cli/
+    ├── core/
+    ├── providers/
+    ├── routes/
+    ├── server/
+    ├── translate/
+    └── types.py
+```
+
+可以用 git push 方式上传:
+
+```bash
+git clone https://huggingface.co/spaces/<你的用户名>/<space名>
+cd <space名>
+
+# 从 OpenLLM 项目复制必要文件
+cp /path/to/OpenLLM/Dockerfile.hf ./Dockerfile
+cp /path/to/OpenLLM/pyproject.toml .
+cp -r /path/to/OpenLLM/openllm/ .
+
+git add .
+git commit -m "Deploy OpenLLM"
+git push
+```
 
 ### 3. 配置 Secrets
 
