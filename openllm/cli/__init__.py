@@ -18,16 +18,23 @@ app = typer.Typer(
 @app.command()
 def serve(
     host: str = typer.Option("127.0.0.1", "--host", "-H", help="绑定地址"),
-    port: int = typer.Option(11343, "--port", "-p", help="端口"),
+    port: int = typer.Option(None, "--port", "-p", help="端口 (默认 11343, 可通过 PORT 环境变量覆盖)"),
     log_level: str = typer.Option("info", "--log-level", "-l", help="日志级别"),
     reload: bool = typer.Option(False, "--reload", help="热重载（开发模式）"),
-    api_key: str = typer.Option(None, "--api-key", "-k", help="API 认证密钥（设置后所有端点需要 Bearer Token）"),
+    api_key: str = typer.Option(None, "--api-key", "-k", help="API 认证密钥（设置后所有端点需要 Bearer Token，也可通过 ROUTER_API_KEY 环境变量设置）"),
 ):
     """启动 OpenLLM 网关服务器"""
     logging.basicConfig(
         level=getattr(logging, log_level.upper(), logging.INFO),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+
+    # 环境变量回退: PORT 和 ROUTER_API_KEY
+    import os
+    if port is None:
+        port = int(os.environ.get("PORT", "11343"))
+    if api_key is None:
+        api_key = os.environ.get("ROUTER_API_KEY")
 
     # 启动自检
     typer.echo("🔍 OpenLLM Self-Check...")

@@ -45,7 +45,23 @@ def find_config(path: str | Path | None = None) -> Path | None:
 
 
 def load_config(path: str | Path | None = None) -> dict[str, Any]:
-    """加载配置文件"""
+    """加载配置
+
+    优先级: OPENLLM_CONFIG 环境变量 > 指定路径 > 自动搜索配置文件
+
+    OPENLLM_CONFIG 支持传入 YAML 或 JSON 字符串，适用于无文件系统的部署环境
+    （如 Hugging Face Spaces、Cloudflare Containers 等）。
+    """
+    # 1. 优先读取 OPENLLM_CONFIG 环境变量（部署场景）
+    config_env = os.environ.get("OPENLLM_CONFIG", "").strip()
+    if config_env:
+        # 自动检测格式: 以 { 开头为 JSON，否则为 YAML
+        if config_env.startswith("{"):
+            return json.loads(config_env) or {}
+        import yaml
+        return yaml.safe_load(config_env) or {}
+
+    # 2. 从配置文件加载
     config_path = find_config(path)
     if not config_path:
         return {}
