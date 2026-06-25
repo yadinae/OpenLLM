@@ -1,9 +1,9 @@
 # Hugging Face Spaces Dockerfile
-# COPY 源码方式 — 将项目源码直接放入 HF Space 仓库构建
+# 自包含部署 — 从 GitHub 公开仓库直接安装
 #
 # 使用方式:
 #   1. 在 hf.co 创建新 Space, 选择 Docker SDK
-#   2. 将 openllm/ 目录、pyproject.toml 和此 Dockerfile 放入 Space 仓库
+#   2. 将此 Dockerfile 放入 Space 仓库根目录
 #   3. 在 Settings → Secrets 中添加 API Keys
 #   4. 如需自定义配置, 在 Settings → Variables 中设置 OPENLLM_CONFIG (YAML 字符串)
 #
@@ -17,13 +17,13 @@ FROM python:3.11-slim-bookworm AS builder
 
 WORKDIR /build
 
-# 复制项目源码
-COPY pyproject.toml .
-COPY openllm/ openllm/
+# 安装 git (pip install git+https 需要)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git && \
+    rm -rf /var/lib/apt/lists/*
 
-# 构建 + 安装
-RUN pip install --no-cache-dir hatchling && \
-    pip install --no-cache-dir .
+# 从 GitHub 公开仓库直接安装
+RUN pip install --no-cache-dir git+https://github.com/yadinae/OpenLLM.git
 
 # ── 运行镜像 ──────────────────────────────
 FROM python:3.11-slim-bookworm
