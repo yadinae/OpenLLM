@@ -243,9 +243,18 @@ async function authFetch(url) {
 
 /* ---- Main load ---- */
 async function load() {
+  /* 没有 key 时直接弹窗，不发任何请求 */
+  if (!getApiKey()) {
+    var modal = document.getElementById('key-modal');
+    if (!modal.classList.contains('show')) {
+      showKeyModal(false);
+    }
+    return;
+  }
+
   try {
     var healthResp = await fetch('/health');
-    var modelsResp = await fetch('/v1/models');
+    var modelsResp = await authFetch('/v1/models');
     var combosResp = await authFetch('/api/combos');
     var statusResp = await authFetch('/api/status');
 
