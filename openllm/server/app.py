@@ -67,6 +67,14 @@ def create_app(api_key: str | None = None) -> FastAPI:
         logger.info("OpenLLM started with %d provider(s), %d model(s) with metadata",
                     len(registry.list_providers()), len(metadata_registry.list_all()))
 
+        # 安全检查：未设置 API Key 时打印警告
+        if not _api_key:
+            logger.warning("=" * 60)
+            logger.warning("SECURITY WARNING: No API key is set!")
+            logger.warning("Anyone can access your gateway without authentication.")
+            logger.warning("Set ROUTER_API_KEY environment variable or pass --api-key.")
+            logger.warning("=" * 60)
+
         # 后台健康检查任务
         health_task = asyncio.create_task(_health_check_loop())
         yield

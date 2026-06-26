@@ -66,7 +66,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     if not config_path:
         return {}
     
-    content = config_path.read_text()
+    content = config_path.read_text(encoding="utf-8")
     if config_path.suffix in (".yaml", ".yml"):
         import yaml
         return yaml.safe_load(content) or {}
