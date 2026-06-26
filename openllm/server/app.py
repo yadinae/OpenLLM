@@ -116,8 +116,10 @@ def create_app(api_key: str | None = None) -> FastAPI:
             return validation_result
 
         if _api_key:
-            # /health, /docs, /dashboard, /api/* 不要求认证
-            if request.url.path in ("/health", "/docs", "/openapi.json", "/", "/api/status", "/api/combos"):
+            # 白名单：无需认证即可访问的端点
+            # /, /health, /docs 允许匿名访问
+            # /api/status 和 /api/combos 需要认证（由 dashboard 的 authFetch 带 Token）
+            if request.url.path in ("/health", "/docs", "/openapi.json", "/"):
                 return await call_next(request)
             auth = request.headers.get("Authorization", "")
             if not auth.startswith("Bearer ") or auth[7:] != _api_key:

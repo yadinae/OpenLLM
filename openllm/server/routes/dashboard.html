@@ -180,9 +180,15 @@ function updateKeyStatus() {
   }
 }
 
-function showKeyModal() {
+function showKeyModal(isInvalid) {
   document.getElementById('key-input').value = getApiKey();
-  document.getElementById('key-error').style.display = 'none';
+  var errEl = document.getElementById('key-error');
+  if (isInvalid) {
+    errEl.textContent = 'Invalid API key, please try again.';
+    errEl.style.display = 'block';
+  } else {
+    errEl.style.display = 'none';
+  }
   document.getElementById('key-modal').classList.add('show');
   document.getElementById('key-input').focus();
 }
@@ -191,12 +197,22 @@ function closeKeyModal() {
   document.getElementById('key-modal').classList.remove('show');
 }
 
-function saveKey() {
+async function saveKey() {
   var key = document.getElementById('key-input').value.trim();
   if (!key) {
     document.getElementById('key-error').textContent = 'Please enter a key.';
     document.getElementById('key-error').style.display = 'block';
     return;
+  }
+  /* 保存前先验证 key 是否有效 */
+  try {
+    var resp = await fetch('/api/status', { headers: { 'Authorization': 'Bearer ' + key } });
+    if (resp.status === 401) {
+      showKeyModal(true);
+      return;
+    }
+  } catch(e) {
+    /* 网络错误，忽略，继续保存让用户试 */
   }
   setApiKey(key);
   closeKeyModal();
@@ -219,8 +235,8 @@ async function authFetch(url) {
   }
   var resp = await fetch(url, {headers: headers});
   if (resp.status === 401) {
-    if (!key) showKeyModal();
-    throw new Error('Unauthorized - please set your API key');
+    showKeyModal(true);
+    throw new Error('Unauthorized - API key is invalid or missing');
   }
   return resp;
 }
@@ -316,13 +332,13 @@ async function load() {
     });
     combosEl.innerHTML = comboHtml || '<div class="empty">No combos configured</div>';
 
-  } catch (e) {
+} catch (e) {
     if (e.message && e.message.indexOf('Unauthorized') !== -1) {
-      /* already handled by authFetch */
+      /* authFetch 已处理：modal 已弹出 */
     } else {
       document.getElementById('providers').innerHTML = '<div class="error-msg">Failed to load: ' + e.message + '</div>';
     }
-  }
+}
 }
 
 updateKeyStatus();
