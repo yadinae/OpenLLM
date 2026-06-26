@@ -89,6 +89,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 .btn-cancel:hover{border-color:#94a3b8}
 .btn-save:hover{background:#7dd3fc}
 .modal-error{color:#f87171;font-size:12px;margin-top:12px;display:none}
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#334155;color:#f8fafc;padding:10px 20px;border-radius:8px;font-size:13px;z-index:2000;opacity:0;transition:opacity 0.3s;pointer-events:none}
+.toast.show{opacity:1}
 </style>
 </head>
 <body>
@@ -128,13 +130,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 
   <!-- Endpoints -->
   <div class="section">
-    <div class="section-title">API Endpoints</div>
+    <div class="section-title">API Endpoints <span style="font-size:12px;color:#475569;font-weight:400">click an endpoint to copy curl command</span></div>
     <div class="endpoints">
-      <a class="endpoint" href="/v1/models"><span class="method method-get">GET</span><span class="path">/v1/models</span><span class="desc">List models</span></a>
-      <a class="endpoint" href="/v1/chat/completions"><span class="method method-post">POST</span><span class="path">/v1/chat/completions</span><span class="desc">OpenAI chat</span></a>
-      <a class="endpoint" href="/v1/messages"><span class="method method-post">POST</span><span class="path">/v1/messages</span><span class="desc">Anthropic messages</span></a>
-      <a class="endpoint" href="/v1/models/rankings"><span class="method method-get">GET</span><span class="path">/v1/models/rankings</span><span class="desc">Model rankings</span></a>
-      <a class="endpoint" href="/health"><span class="method method-get">GET</span><span class="path">/health</span><span class="desc">Health check</span></a>
+      <div class="endpoint" onclick="copyCurl('/v1/models', 'GET')"><span class="method method-get">GET</span><span class="path">/v1/models</span><span class="desc">List models</span></div>
+      <div class="endpoint" onclick="copyCurl('/v1/chat/completions', 'POST', '{\"model\":\"auto\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}')"><span class="method method-post">POST</span><span class="path">/v1/chat/completions</span><span class="desc">OpenAI chat</span></div>
+      <div class="endpoint" onclick="copyCurl('/v1/messages', 'POST', '{\"model\":\"auto\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}')"><span class="method method-post">POST</span><span class="path">/v1/messages</span><span class="desc">Anthropic messages</span></div>
+      <div class="endpoint" onclick="copyCurl('/v1/models/rankings', 'GET')"><span class="method method-get">GET</span><span class="path">/v1/models/rankings</span><span class="desc">Model rankings</span></div>
+      <a class="endpoint" href="/health" target="_blank"><span class="method method-get">GET</span><span class="path">/health</span><span class="desc">Health check &rarr;</span></a>
     </div>
   </div>
 </div>
@@ -350,9 +352,34 @@ async function load() {
 }
 }
 
+/* ---- Curl copy helpers ---- */
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+
+function copyCurl(path, method, body) {
+  var key = getApiKey();
+  var base = window.location.origin;
+  var lines = ['curl -X ' + method + ' ' + base + path];
+  lines.push('  -H "Content-Type: application/json"');
+  if (key) lines.push('  -H "Authorization: Bearer ' + key + '"');
+  if (body) lines.push("  -d '" + body + "'");
+  var cmd = lines.join(' \\\n');
+  navigator.clipboard.writeText(cmd).then(function() {
+    showToast('✓ Curl command copied to clipboard');
+  }).catch(function() {
+    /* fallback: show in a prompt */
+    prompt('Copy this curl command:', cmd);
+  });
+}
+
 updateKeyStatus();
 load();
 setInterval(load, 30000);
 </script>
+<div id="toast" class="toast"></div>
 </body>
 </html>

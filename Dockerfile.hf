@@ -23,7 +23,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # 修改 REBUILD_DATE 可强制重建缓存层（更新日期即可触发全新构建）
-ARG REBUILD_DATE=2026-06-26
+ARG REBUILD_DATE=2026-06-27
 
 # 从 GitHub 公开仓库直接安装
 RUN pip install --no-cache-dir git+https://github.com/yadinae/OpenLLM.git
